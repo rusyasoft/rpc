@@ -1,0 +1,48 @@
+http://stackoverflow.com/questions/12371450/how-are-variable-arguments-implemented-in-gcc
+If you look at the way the C language stores the parameters on the stack, the way the macros work should become clear:-
+
+Higher memory address    Last parameter
+                         Penultimate parameter
+                         ....
+                         Second parameter
+Lower memory address     First parameter
+       StackPointer  ->  Return address
+(note, depending on the hardware the stack pointer maybe one line down and the higher and lower may be swapped)
+
+The arguments are always stored like this1, even without the ... parameter type.
+
+The va_start macro just sets up a pointer to the first function parameter, e.g.:-
+
+ void func (int a, ...)
+ { 
+   // va_start
+   char *p = (char *) &a + sizeof a;
+ }
+which makes p point to the second parameter. The va_arg macro does this:-
+
+ void func (int a, ...)
+ { 
+   // va_start
+   char *p = (char *) &a + sizeof a;
+
+   // va_arg
+   int i1 = *((int *)p);
+   p += sizeof (int);
+
+   // va_arg
+   int i2 = *((int *)p);
+   p += sizeof (int);
+
+   // va_arg
+   long i2 = *((long *)p);
+   p += sizeof (long);
+ }
+The va_end macro just sets the p value to NULL.
+
+NOTES:
+
+Optimising compilers and some RISC CPUs store parameters in registers rather than use the stack. The presence of the ... parameter would switch off this ability and for the compiler to use the stack.
+
+------------------------------------------------------------------------------
+
+
