@@ -73,7 +73,7 @@ int handle_new_connection(RPC* rpc, int master_socket, struct sockaddr_in* addre
         }
 
 	//inform user of socket number - used in send and receive commands
-	printf("New connection , socket fd is %d , ip is : %s , port : %d \n" , *new_socket , inet_ntoa(address->sin_addr) , ntohs(address->sin_port));
+	printf("--> New connection , socket fd is %d , ip is : %s , port : %d \n" , *new_socket , inet_ntoa(address->sin_addr) , ntohs(address->sin_port));
 	
 	// call rpc connect callback function
 	if (rpc->connect != NULL){
@@ -98,7 +98,7 @@ int handle_new_connection(RPC* rpc, int master_socket, struct sockaddr_in* addre
 		if( client_socket[i] == 0 )
 		{
 			client_socket[i] = *new_socket;
-			printf("Adding to list of sockets as %d\n" , i);
+			//printf("Adding to list of sockets as %d\n" , i);
 			break;
 		}
 	}
@@ -106,7 +106,7 @@ int handle_new_connection(RPC* rpc, int master_socket, struct sockaddr_in* addre
 }
 
 int handle_incoming_data(RPC * rpc, int clientID, int sd, int *readfds, struct sockaddr_in* address, int * addrlen, int *client_socket){
-	printf("--> something happening with client %d \n", clientID);
+	//printf("--> something happening with client %d \n", clientID);
     //Check if it was for closing , and also read the incoming message
 	int valread;
 	char buffer[MAX_BUFFER_SIZE];  //data buffer of 1K
@@ -152,7 +152,7 @@ int handle_incoming_data(RPC * rpc, int clientID, int sd, int *readfds, struct s
 		memcpy(&proc_argc, bufwalker, sizeof(int));
 		bufwalker += sizeof(int);
 
-		printf("procedure name = %s, number of arguments = %d\n", proc_name, proc_argc);
+		//printf("procedure name = %s, number of arguments = %d\n", proc_name, proc_argc);
 
 		/* /// test for recovering the received arguments and it worked well ///
 		int a;
@@ -174,11 +174,11 @@ int handle_incoming_data(RPC * rpc, int clientID, int sd, int *readfds, struct s
 		for (i=0;i<RPC_MAX_PROCEDURES;i++){
 			//printf("%d) %s,%s|\n", i+1, rpc->procedures[i].name, name );
 			if (!strcmp(rpc->procedures[i].name, proc_name)){
-				printf("argc = %d,\n", rpc->procedures[i].argc);
-				printf("procedure found!-->\n");
+				//printf("argc = %d,\n", rpc->procedures[i].argc);
+				//printf("procedure found!-->\n");
 				totalsize = calculateVariablesSize(rpc->procedures[i].argc, rpc->procedures[i].types);
 				proc_index = i;
-				printf("totalsize = %d\n", totalsize);
+				//printf("totalsize = %d\n", totalsize);
 				break;
 			}
 		}
@@ -310,7 +310,7 @@ int start_rpc_server(RPC* rpc){
         //If something happened on the master socket , then its an incoming connection
         if (FD_ISSET(master_socket, &readfds)) 
         {
-			printf("master_socket something happening !\n ");
+			//printf("master_socket something happening !\n ");
 			handle_new_connection(rpc, master_socket, &address, &addrlen, &new_socket, message, &client_socket);
         }
           
@@ -423,13 +423,13 @@ void* rpc_invoke(RPC* rpc, const char* name, ...) {
 	// list out existing procuedure names in current rpc object
 	int proc_index = -1; // index of procedure saved at procedure search time
 	for (i=0;i<RPC_MAX_PROCEDURES;i++){
-		printf("%d) %s,%s|\n", i+1, rpc->procedures[i].name, name );
+		//printf("%d) %s,%s|\n", i+1, rpc->procedures[i].name, name );
 		if (!strcmp(rpc->procedures[i].name, name)){
-			printf("argc = %d,\n", rpc->procedures[i].argc);
-			printf("procedure found!-->\n");
+			//printf("argc = %d,\n", rpc->procedures[i].argc);
+			//printf("procedure found!-->\n");
 			totalsize = calculateVariablesSize(rpc->procedures[i].argc, rpc->procedures[i].types);
 			proc_index = i;
-			printf("totalsize = %d\n", totalsize);
+			//printf("totalsize = %d\n", totalsize);
 			break;
 		}
 	}
@@ -455,29 +455,29 @@ void* rpc_invoke(RPC* rpc, const char* name, ...) {
 		printf("\n");
 		*/
 
-		printf(" saving into bytearray 1, proc_index = %d, argc = %d \n", proc_index, rpc->procedures[proc_index].argc);
+		//printf(" saving into bytearray 1, proc_index = %d, argc = %d \n", proc_index, rpc->procedures[proc_index].argc);
 		
 		//////////////// saving into bytearray ///////////////
 		va_list valist;
 		va_start(valist, rpc->procedures[proc_index].argc);
 		
-		printf(" saving into bytearray 2, sizeofvalist = %d, valist=%d \n", sizeof(valist), valist);
+		//printf(" saving into bytearray 2, sizeofvalist = %d, valist=%d \n", sizeof(valist), valist);
 		
 		// first save name of procedure
 		memcpy(p, rpc->procedures[proc_index].name, RPC_MAX_NAME);
 		p += RPC_MAX_NAME;
 
-		printf(" saving into bytearray 3 argc = %d\n", rpc->procedures[proc_index].argc);
+		//printf(" saving into bytearray 3 argc = %d\n", rpc->procedures[proc_index].argc);
 		int tmp2 = rpc->procedures[proc_index].argc;
 		// second integer valuie for number of arguments argc (even though one byte would be enough just following the structure :P )
 		//memcpy(p, &rpc->procedures[proc_index].argc, sizeof(int));
 		memcpy(p, &tmp2, sizeof(int));
-		printf(" saving into bytearray 4 \n");
+		//printf(" saving into bytearray 4 \n");
 		p += sizeof(int);
 
 		
 
-		printf(" Starting parsing arguments into bytearray \n");
+		//printf(" Starting parsing arguments into bytearray \n");
 		//// next the list of arguments are coming
 		for (i=0; i < rpc->procedures[proc_index].argc; i++){
 		
@@ -485,16 +485,17 @@ void* rpc_invoke(RPC* rpc, const char* name, ...) {
 			void * tmp = (void*)va_arg_bysize(valist, 4);//calculateVariablesSize(1, &rpc->procedures[proc_index].types[i])); //rpc->procedures[proc_index].types[i]);
 			memcpy(p, tmp, calculateVariablesSize(1, &rpc->procedures[proc_index].types[i])); // rpc->procedures[proc_index].types[i]);
 			p +=  calculateVariablesSize(1, &rpc->procedures[proc_index].types[i]); //rpc->procedures[proc_index].types[i];
-			printf("%d (realsize = %d) (size is %d) => %d, addr=%x\n",i+1, calculateVariablesSize(1, &rpc->procedures[proc_index].types[i]), sizeof(tmp), *(uint32*)tmp, tmp);
+			//printf("%d (realsize = %d) (size is %d) => %d, addr=%x\n",i+1, calculateVariablesSize(1, &rpc->procedures[proc_index].types[i]), sizeof(tmp), *(uint32*)tmp, tmp);
 		}
 		va_end(valist);
 
-		// checking by printing bytearray ////
+		/* // checking by printing bytearray ////
 		printf("total bytes: ");
 		for(i=0; i<totalsize;i++){
 				printf("%u ", bytearray[i]);
 		}
 		printf("\n");
+		*/
 
 		/* //// recovery example ////// it worked
 		int a;
@@ -520,7 +521,7 @@ void* rpc_invoke(RPC* rpc, const char* name, ...) {
 				//int resultc;
 				void * return_result = malloc(rpc->procedures[proc_index].return_type);
 				memcpy(return_result, bytearray, sizeof(int));
-				printf("response -> %s or %d\n", bytearray, *(int*)(return_result));
+				//printf("response -> %s or %d\n", bytearray, *(int*)(return_result));
 				return (int*)return_result;
 			}
 			

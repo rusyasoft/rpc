@@ -55,18 +55,5 @@ int main(int arc, char ** argv){
 	if (retstr != NULL)
 		printf("RPC_MAX_NAME = %d, multiply_caller.name = %s, return = %d\n", RPC_MAX_NAME, multiply_caller.name, *retstr);
 
-	/* server side
-
-	RPC *  myrpc = (RPC*)malloc(sizeof(RPC));
-        int ret = rpc_init(myrpc, &myconnect, &mydisconnect, &mysend, &myreceive, 0);
-
-
-	RPC_Procedure r_hello;
-	r_hello.name = "hello";
-	r_hello.return_type = RPC_TYPE_STRING;
-	r_hello.argc = 1;
-	r_hello.types[0] = RPC_TYPE_STRING;
-	r_hello.func = actualfunction();
-	*/
 
 }
