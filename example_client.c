@@ -16,13 +16,13 @@
 //////////////////////////////////////////////
 
 int main(int arc, char ** argv){
-
-	RPC * myrpc = rpc_create(NULL, "117.16.136.173", 8888, "rustam", "dms");  // <-- gets connection to server if non NULL returned
+	RPC * myrpc = rpc_create(NULL, "127.0.0.1", 8888, "rustam", "dms");  // <-- gets connection to server if non NULL returned
 
 
 	//if (typeof(ret) == int)
 	//	printf("int ekanku!\n");
 	//printf("%d \n", jav);
+
 	
 	RPC_Procedure summing_caller;
 	strncpy(summing_caller.name, "summing", RPC_MAX_NAME);
@@ -45,6 +45,7 @@ int main(int arc, char ** argv){
 	multiply_caller.func = NULL;
 	multiply_caller.context = NULL;	
 	rpc_add(myrpc, &multiply_caller);
+
 
 	int * retstr = (int*)rpc_invoke(myrpc, "summing",400,500, 16);
 	if (retstr != NULL)

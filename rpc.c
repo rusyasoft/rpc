@@ -24,7 +24,8 @@
 
 
 
-#define va_arg_bysize(list, size)       ((list += size) - size)
+#define va_arg_bysize(list, size)       (( ((char*)list) += size) - size)
+//#define va_arg_bysize(list, size)       (( list = (__gnuc_va_list) ((char*)(list) + __va_rounded_size(size)) - size)
 //////////////////////////////////////////////
 ////// modifiable definitions
 
@@ -479,14 +480,21 @@ void* rpc_invoke(RPC* rpc, const char* name, ...) {
 
 		//printf(" Starting parsing arguments into bytearray \n");
 		//// next the list of arguments are coming
+		
 		for (i=0; i < rpc->procedures[proc_index].argc; i++){
 		
 			//TODO: not sure why the 4 works, may be its because pointer type. Should be researched more 
-			void * tmp = (void*)va_arg_bysize(valist, 4);//calculateVariablesSize(1, &rpc->procedures[proc_index].types[i])); //rpc->procedures[proc_index].types[i]);
-			memcpy(p, tmp, calculateVariablesSize(1, &rpc->procedures[proc_index].types[i])); // rpc->procedures[proc_index].types[i]);
+			//void * tmp = (void*)va_arg_bysize(valist, sizeof(int));//calculateVariablesSize(1, &rpc->procedures[proc_index].types[i])); //rpc->procedures[proc_index].types[i]);
+			//void * tmp = (void*)va_arg(valist, int);
+			
+			int tmp = va_arg(valist, int);
+			printf("va_arg = %d\n", tmp, tmp);
+
+			memcpy(p, &tmp, calculateVariablesSize(1, &rpc->procedures[proc_index].types[i])); // rpc->procedures[proc_index].types[i]);
 			p +=  calculateVariablesSize(1, &rpc->procedures[proc_index].types[i]); //rpc->procedures[proc_index].types[i];
 			//printf("%d (realsize = %d) (size is %d) => %d, addr=%x\n",i+1, calculateVariablesSize(1, &rpc->procedures[proc_index].types[i]), sizeof(tmp), *(uint32*)tmp, tmp);
 		}
+		
 		va_end(valist);
 
 		/* // checking by printing bytearray ////
@@ -552,8 +560,10 @@ RPC * rpc_create(RPC* rpc, char * server_ip_addr, uint16_t port, const char * us
 	}
 
 	int portno, n;
-    struct sockaddr_in serv_addr;
-    struct hostent *server;
+
+	struct sockaddr_in serv_addr;
+	struct hostent *server;
+
 
 	char buffer[MAX_BUFFER_SIZE];
 
@@ -578,12 +588,15 @@ RPC * rpc_create(RPC* rpc, char * server_ip_addr, uint16_t port, const char * us
          (char *)&serv_addr.sin_addr.s_addr,
          server->h_length);
 	serv_addr.sin_port = htons(portno);
-	
+
+
 
 	if (connect(rpc->sockfd,(struct sockaddr *) &serv_addr,sizeof(serv_addr)) < 0) 
         error("ERROR at connecting");
 	else
 		printf("Connected Successfully to remote RPC Server !\n");
+
+
 	
 	return rpc;
 }
