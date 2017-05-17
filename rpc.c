@@ -13,6 +13,8 @@
 #include <netinet/in.h>
 #include <sys/time.h> //FD_SET, FD_ISSET, FD_ZERO macros
 #include <netdb.h> 
+
+#include "rpc.h"
 //////////////////////////////
 
 //rustamchange// added and required definitions
@@ -25,9 +27,8 @@
 
 
 #define va_arg_bysize(list, size)       (( ((char*)list) += size) - size)
-//#define va_arg_bysize(list, size)       (( list = (__gnuc_va_list) ((char*)(list) + __va_rounded_size(size)) - size)
-//////////////////////////////////////////////
-////// modifiable definitions
+
+/////////// modifiable definitions //////////////
 
 // Server listening port number
 #define PORT 8888
@@ -38,9 +39,7 @@
 // maximum number of allowed clients
 #define MAX_NUM_OF_CLIENTS 30
 
-//////////////////////////////////////////////
-
-#include "rpc.h"
+/////////////////////////////////////////////////
 
 
 int rpc_init(RPC* rpc,
@@ -48,8 +47,9 @@ int rpc_init(RPC* rpc,
         int(*disconnect)(RPC* rpc),
         int(*send)(RPC* rpc, void* buf, int size),
         int(*receive)(RPC* rpc, void* buf, int size),
-        int priv_size){
-	
+        int priv_size)
+{
+
 	bzero(rpc, sizeof(RPC) + priv_size);
 	rpc->connect = connect;
 	rpc->disconnect = disconnect;
@@ -81,25 +81,12 @@ int handle_new_connection(RPC* rpc, int master_socket, struct sockaddr_in* addre
 		rpc->connect(rpc, address->sin_addr.s_addr, ntohs(address->sin_port), "guest", "pass");
 	}
 
-	/* no need to response with greeting message 
-	//send new connection greeting message
-	if( send(*new_socket, message, strlen(message), 0) != strlen(message) )
-	{
-		perror("send");
-	}
-	puts("Welcome message sent successfully");
-	*/
-
-
-
 	//add new socket to array of sockets
 	for (i = 0; i < MAX_NUM_OF_CLIENTS; i++)
 	{
-		//if position is empty
 		if( client_socket[i] == 0 )
 		{
 			client_socket[i] = *new_socket;
-			//printf("Adding to list of sockets as %d\n" , i);
 			break;
 		}
 	}
@@ -107,8 +94,7 @@ int handle_new_connection(RPC* rpc, int master_socket, struct sockaddr_in* addre
 }
 
 int handle_incoming_data(RPC * rpc, int clientID, int sd, int *readfds, struct sockaddr_in* address, int * addrlen, int *client_socket){
-	//printf("--> something happening with client %d \n", clientID);
-    //Check if it was for closing , and also read the incoming message
+	//Check if it was for closing , and also read the incoming message
 	int valread;
 	char buffer[MAX_BUFFER_SIZE];  //data buffer of 1K
 	char * bufwalker;
@@ -123,26 +109,15 @@ int handle_incoming_data(RPC * rpc, int clientID, int sd, int *readfds, struct s
 		if (rpc->disconnect != NULL){
 			rpc->disconnect(rpc);
 		}
-                      
         //Close the socket and mark as 0 in list for reuse
         close( sd );
         client_socket[clientID] = 0;
     }
-                  
+
     //Echo back the message that came in
     else
     {
 		//// recovery example //// prototype code
-
-		/*
-		// first save name of procedure
-		memcpy(p, rpc->procedures[proc_index].name, RPC_MAX_NAME);
-		p += RPC_MAX_NAME;
-		// second integer valuie for number of arguments argc (even though one byte would be enough just following the structure :P )
-		memcpy(p, argc, sizeof(int));
-		p += sizeof(int);
-		*/
-
 		bufwalker = buffer;
 
 		char proc_name[RPC_MAX_NAME];
@@ -153,33 +128,13 @@ int handle_incoming_data(RPC * rpc, int clientID, int sd, int *readfds, struct s
 		memcpy(&proc_argc, bufwalker, sizeof(int));
 		bufwalker += sizeof(int);
 
-		//printf("procedure name = %s, number of arguments = %d\n", proc_name, proc_argc);
-
-		/* /// test for recovering the received arguments and it worked well ///
-		int a;
-		memcpy(&a, bufwalker, sizeof(int));
-		int b;
-		memcpy(&b, bufwalker + sizeof(int), sizeof(int));
-		printf("values came from client a = %d, b= %d\n", a,b);
-		
-		int c = a + b;
-		// send primitive response
-		memcpy(buffer, &c, sizeof(int));
-		buffer[sizeof(int)] = '\0';
-		send(sd, buffer, sizeof(int), 0);
-		*/
-		
 		//TODO: search for the procedure from the RPC sturctures RPC_Procedure array
 		int totalsize = 0, i=0;
 		int proc_index = -1; // index of procedure saved at procedure search time
 		for (i=0;i<RPC_MAX_PROCEDURES;i++){
-			//printf("%d) %s,%s|\n", i+1, rpc->procedures[i].name, name );
 			if (!strcmp(rpc->procedures[i].name, proc_name)){
-				//printf("argc = %d,\n", rpc->procedures[i].argc);
-				//printf("procedure found!-->\n");
-				totalsize = calculateVariablesSize(rpc->procedures[i].argc, rpc->procedures[i].types);
+				totalsize = getProcedureArgsSize( (RPC_Procedure*)&rpc->procedures[i] );  //calculateVariablesSize(rpc->procedures[i].argc, rpc->procedures[i].types);
 				proc_index = i;
-				//printf("totalsize = %d\n", totalsize);
 				break;
 			}
 		}
@@ -191,10 +146,13 @@ int handle_incoming_data(RPC * rpc, int clientID, int sd, int *readfds, struct s
 			void **args = (void**) malloc(sizeof(void*)*(rpc->procedures[proc_index].argc) );
 			for (i=0; i < rpc->procedures[proc_index].argc; i++){
 				args[i] = malloc(calculateVariablesSize(1, &rpc->procedures[proc_index].types[i])); //malloc(rpc->procedures[proc_index].types[i]);
+				//args[i] = malloc( getProcedureArgsSize( &rpc->procedures[proc_index] )); //malloc(rpc->procedures[proc_index].types[i]);
 				//copying the procedure arguments from received buffer
 				memcpy(args[i], bufwalker, calculateVariablesSize(1, &rpc->procedures[proc_index].types[i]));
+				//memcpy(args[i], bufwalker, getProcedureArgsSize(&rpc->procedures[proc_index]));
 				printf("%d) %d    size = %d\n", i, *((short*)args[i])  ,calculateVariablesSize(1, &rpc->procedures[proc_index].types[i]) );
 				bufwalker += calculateVariablesSize(1, &rpc->procedures[proc_index].types[i]); //rpc->procedures[proc_index].types[i];
+				//bufwalker += getProcedureArgsSize(&rpc->procedures[proc_index]);
 				
 			}
 			proc_return = rpc->procedures[proc_index].func(rpc, rpc->procedures[proc_index].name, rpc->procedures[proc_index].argc, args, NULL);
@@ -207,12 +165,6 @@ int handle_incoming_data(RPC * rpc, int clientID, int sd, int *readfds, struct s
 		}else{
 			printf("Couldn't find procedure named: %s\n", proc_name);
 		}
-		
-
-		//rustamchange --> no reply performed so far
-        //set the string terminating NULL byte on the end of the data read
-        //buffer[valread] = '\0';
-        //send(sd , buffer , strlen(buffer) , 0 );
     }
 	return 0;
 }
@@ -311,10 +263,10 @@ int start_rpc_server(RPC* rpc){
         //If something happened on the master socket , then its an incoming connection
         if (FD_ISSET(master_socket, &readfds)) 
         {
-			//printf("master_socket something happening !\n ");
 			handle_new_connection(rpc, master_socket, &address, &addrlen, &new_socket, message, &client_socket);
         }
           
+
         //else its some IO operation on some other socket :)
         for (i = 0; i < MAX_NUM_OF_CLIENTS; i++) 
         {
@@ -343,12 +295,9 @@ int rpc_add(RPC* rpc, RPC_Procedure* procedure) {
 	for (i = 0;  i < RPC_MAX_PROCEDURES; i++){
 		if (!strcmp(rpc->procedures[i].name, "")){
 			memcpy(&rpc->procedures[i], procedure, sizeof(*procedure));
-			//printf("1 summing_caller.name = %s , %d\n", procedure->name, sizeof(*procedure));
-			//printf("2 summing_caller.name = %s , %d\n", rpc->procedures[0].name , sizeof(rpc->procedures[0]));
 			break;  // add and break out the loop
 		}
 	}
-	
 }
 
 
@@ -377,6 +326,35 @@ uint16 calculateVariablesSize(int numOfArguments, int * types){
 		}
 	}
 	return totalSize;
+}
+
+uint16 getProcedureArgsSize(RPC_Procedure*  procedure){
+	int totalSize = 0;
+        int i=0;
+        for (i = 0; i < procedure->argc; i++){
+		totalSize += getTypeSize(procedure->types[i]);
+		/*
+                switch (procedure->types[i]){
+                        case RPC_TYPE_VOID:     totalSize += 0; break;
+                        case RPC_TYPE_BOOL:     totalSize += 1; break;
+                        case RPC_TYPE_UINT8:    totalSize += 1; break;
+                        case RPC_TYPE_UINT16:   totalSize += 2; break;
+                        case RPC_TYPE_UINT32:   totalSize += 4; break;
+                        case RPC_TYPE_UINT64:   totalSize += 8; break;
+                        case RPC_TYPE_INT8:     totalSize += 1; break;
+                        case RPC_TYPE_INT16:    totalSize += 2; break;
+                        case RPC_TYPE_INT32:    totalSize += 4; break;
+                        case RPC_TYPE_INT64:    totalSize += 8; break;
+                        case RPC_TYPE_FLOAT:    totalSize += 4; break;
+			case RPC_TYPE_DOUBLE:   totalSize += 8; break;
+                        
+                        // TODO: special cases and should be processed differently
+                        //case RPC_TYPE_STRING:
+                        //case RPC_TYPE_ARRAY:
+                }
+		*/
+        }
+        return totalSize;
 }
 
 uint32 getTypeSize(int inp_type){ 
@@ -442,76 +420,33 @@ void* rpc_invoke(RPC* rpc, const char* name, ...) {
 
 		//TODO: now argc taken as a offset for remaining arguments
 		char *p = bytearray;//(char *) &arg_c + sizeof(arg_c);
-		//char *p = (char *) rpc + sizeof(*rpc);
-		
-		/*
-		//TODO: value based variables structured thats why copy is possible, when the variables changes to pointers then its gonna fail
-		memcpy(bytearray, p, totalsize);
-		printf("*p = %u\n", *p);
-
-		printf("total bytes: ");
-		for(i=0; i<totalsize+200;i++){
-			printf("%u ", p[i]);//bytearray[i]);
-		}
-		printf("\n");
-		*/
-
-		//printf(" saving into bytearray 1, proc_index = %d, argc = %d \n", proc_index, rpc->procedures[proc_index].argc);
 		
 		//////////////// saving into bytearray ///////////////
 		va_list valist;
 		va_start(valist, rpc->procedures[proc_index].argc);
-		
-		//printf(" saving into bytearray 2, sizeofvalist = %d, valist=%d \n", sizeof(valist), valist);
-		
+
 		// first save name of procedure
 		memcpy(p, rpc->procedures[proc_index].name, RPC_MAX_NAME);
 		p += RPC_MAX_NAME;
 
-		//printf(" saving into bytearray 3 argc = %d\n", rpc->procedures[proc_index].argc);
 		int tmp2 = rpc->procedures[proc_index].argc;
 		// second integer valuie for number of arguments argc (even though one byte would be enough just following the structure :P )
-		//memcpy(p, &rpc->procedures[proc_index].argc, sizeof(int));
 		memcpy(p, &tmp2, sizeof(int));
-		//printf(" saving into bytearray 4 \n");
 		p += sizeof(int);
 
-		
 
-		//printf(" Starting parsing arguments into bytearray \n");
 		//// next the list of arguments are coming
-		
 		for (i=0; i < rpc->procedures[proc_index].argc; i++){
-		
 			//TODO: not sure why the 4 works, may be its because pointer type. Should be researched more 
-			//void * tmp = (void*)va_arg_bysize(valist, sizeof(int));//calculateVariablesSize(1, &rpc->procedures[proc_index].types[i])); //rpc->procedures[proc_index].types[i]);
-			//void * tmp = (void*)va_arg(valist, int);
-			
 			int tmp = va_arg(valist, int);
 			printf("va_arg = %d\n", tmp, tmp);
 
 			memcpy(p, &tmp, calculateVariablesSize(1, &rpc->procedures[proc_index].types[i])); // rpc->procedures[proc_index].types[i]);
 			p +=  calculateVariablesSize(1, &rpc->procedures[proc_index].types[i]); //rpc->procedures[proc_index].types[i];
-			//printf("%d (realsize = %d) (size is %d) => %d, addr=%x\n",i+1, calculateVariablesSize(1, &rpc->procedures[proc_index].types[i]), sizeof(tmp), *(uint32*)tmp, tmp);
 		}
-		
+
 		va_end(valist);
 
-		/* // checking by printing bytearray ////
-		printf("total bytes: ");
-		for(i=0; i<totalsize;i++){
-				printf("%u ", bytearray[i]);
-		}
-		printf("\n");
-		*/
-
-		/* //// recovery example ////// it worked
-		int a;
-		memcpy(&a, bytearray + 32 + sizeof(int), sizeof(int));
-		int b;
-		memcpy(&b, bytearray + 32 + sizeof(int) + sizeof(int), sizeof(int));
-		printf("a = %d, b= %d\n", a, b);
-		*/
 		////////////////////////////////////////////////////////
 
 		// send the bytearray 
@@ -526,33 +461,18 @@ void* rpc_invoke(RPC* rpc, const char* name, ...) {
 				error("ERROR reading from socket");
 			}
 			else {
-				//int resultc;
 				void * return_result = malloc(rpc->procedures[proc_index].return_type);
 				memcpy(return_result, bytearray, sizeof(int));
-				//printf("response -> %s or %d\n", bytearray, *(int*)(return_result));
 				return (int*)return_result;
 			}
-			
-		
 		}
 	}else{
 		printf("The procedure is not found !!!\n");
 	}
-	
-	return NULL;
-	
-	/////////////////////
-
-	
-	
-	
-	
 
 	return NULL;
 }
 
-
-//RPC * rpc_create(RPC* rpc, uint32_t addr, uint16_t port, const char * username, *salted_password){
 RPC * rpc_create(RPC* rpc, char * server_ip_addr, uint16_t port, const char * username, const char *salted_password){
 
 	if (rpc == NULL){
@@ -583,7 +503,6 @@ RPC * rpc_create(RPC* rpc, char * server_ip_addr, uint16_t port, const char * us
 	bzero((char *) &serv_addr, sizeof(serv_addr));	
 
 	serv_addr.sin_family = AF_INET;
-	//serv_addr.sin_addr.s_addr = addr;
 	bcopy((char *)server->h_addr, 
          (char *)&serv_addr.sin_addr.s_addr,
          server->h_length);
@@ -596,8 +515,6 @@ RPC * rpc_create(RPC* rpc, char * server_ip_addr, uint16_t port, const char * us
 	else
 		printf("Connected Successfully to remote RPC Server !\n");
 
-
-	
 	return rpc;
 }
 
@@ -605,6 +522,5 @@ int rpc_destroy(RPC* rpc){
 	if (rpc != NULL){
 		close(rpc->sockfd);
 	}
-	
     return 0;
 }

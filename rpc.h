@@ -85,17 +85,19 @@ int rpc_add(RPC* rpc, RPC_Procedure* procedure);
 
 void* rpc_invoke(RPC* rpc, const char* name, ...);
 
-//RPC* rpc_create(RPC* rpc, uint32_t addr, uint16_t port, const char* username, const char* salted_password);
 RPC* rpc_create(RPC* rpc, char * server_ip_addr, uint16_t port, const char* username, const char* salted_password);
 
 
 
 //rustamchange// new functions
-//int start_rpc_server(char * ip, uint16_t port);
 int start_rpc_server(RPC* rpc);
 
 // helper function
 uint16 calculateVariablesSize(int numOfArguments, int * types);
+
+uint16 getProcedureArgsSize(RPC_Procedure *procedure);
+
+uint32 getTypeSize(int inp_type);
 
 #endif /* __RPC_H__ */
 
