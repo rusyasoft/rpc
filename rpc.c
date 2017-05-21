@@ -73,9 +73,6 @@ int handle_new_connection(RPC* rpc, int master_socket, struct sockaddr_in* addre
 		exit(EXIT_FAILURE);
         }
 
-	//inform user of socket number - used in send and receive commands
-	printf("--> New connection , socket fd is %d , ip is : %s , port : %d \n" , *new_socket , inet_ntoa(address->sin_addr) , ntohs(address->sin_port));
-	
 	// call rpc connect callback function
 	if (rpc->connect != NULL){
 		rpc->connect(rpc, address->sin_addr.s_addr, ntohs(address->sin_port), "guest", "pass");
@@ -103,8 +100,6 @@ int handle_incoming_data(RPC * rpc, int clientID, int sd, int *readfds, struct s
     {
         //Somebody disconnected , get his details and print
         getpeername(sd , (struct sockaddr*)address , (socklen_t*)addrlen);
-        printf("Host disconnected , ip %s , port %d \n" , inet_ntoa(address->sin_addr) , ntohs(address->sin_port));
-
 		// call rpc disconnect callback function
 		if (rpc->disconnect != NULL){
 			rpc->disconnect(rpc);
@@ -146,18 +141,12 @@ int handle_incoming_data(RPC * rpc, int clientID, int sd, int *readfds, struct s
 			void **args = (void**) malloc(sizeof(void*)*(rpc->procedures[proc_index].argc) );
 			for (i=0; i < rpc->procedures[proc_index].argc; i++){
 				args[i] = malloc(calculateVariablesSize(1, &rpc->procedures[proc_index].types[i])); //malloc(rpc->procedures[proc_index].types[i]);
-				//args[i] = malloc( getProcedureArgsSize( &rpc->procedures[proc_index] )); //malloc(rpc->procedures[proc_index].types[i]);
 				//copying the procedure arguments from received buffer
 				memcpy(args[i], bufwalker, calculateVariablesSize(1, &rpc->procedures[proc_index].types[i]));
-				//memcpy(args[i], bufwalker, getProcedureArgsSize(&rpc->procedures[proc_index]));
-				printf("%d) %d    size = %d\n", i, *((short*)args[i])  ,calculateVariablesSize(1, &rpc->procedures[proc_index].types[i]) );
 				bufwalker += calculateVariablesSize(1, &rpc->procedures[proc_index].types[i]); //rpc->procedures[proc_index].types[i];
-				//bufwalker += getProcedureArgsSize(&rpc->procedures[proc_index]);
-				
 			}
 			proc_return = rpc->procedures[proc_index].func(rpc, rpc->procedures[proc_index].name, rpc->procedures[proc_index].argc, args, NULL);
-			printf("proc_return = %d\n", proc_return);
-			
+
 			// send rpc response back to client
 			memcpy(buffer, &proc_return, rpc->procedures[proc_index].return_type);
 			buffer[rpc->procedures[proc_index].return_type] = '\0';
@@ -171,7 +160,7 @@ int handle_incoming_data(RPC * rpc, int clientID, int sd, int *readfds, struct s
 
 //TODO: selection of the IP of server is not given // int start_rpc_server(char * ip, uint16_t port){
 int start_rpc_server(RPC* rpc){
-	int opt = TRUE;
+    int opt = TRUE;
     int master_socket , addrlen , new_socket , client_socket[MAX_NUM_OF_CLIENTS]  , activity, i , valread , sd;
     int max_sd;
     struct sockaddr_in address;
@@ -215,8 +204,7 @@ int start_rpc_server(RPC* rpc){
         perror("bind failed");
         exit(EXIT_FAILURE);
     }
-    printf("Listener on port %d \n", PORT);
-     
+
     //try to specify maximum of 3 pending connections for the master socket
     if (listen(master_socket, MAX_NUM_OF_CLIENTS) < 0)
     {
@@ -224,10 +212,9 @@ int start_rpc_server(RPC* rpc){
         exit(EXIT_FAILURE);
     }
 
-	//accept the incoming connection
+    //accept the incoming connection
     addrlen = sizeof(address);
-    puts("Waiting for connections ...");
-     
+
     while(TRUE) 
     {
         //clear the socket set
@@ -263,7 +250,7 @@ int start_rpc_server(RPC* rpc){
         //If something happened on the master socket , then its an incoming connection
         if (FD_ISSET(master_socket, &readfds)) 
         {
-			handle_new_connection(rpc, master_socket, &address, &addrlen, &new_socket, message, &client_socket);
+		handle_new_connection(rpc, master_socket, &address, &addrlen, &new_socket, message, &client_socket);
         }
           
 
@@ -333,26 +320,6 @@ uint16 getProcedureArgsSize(RPC_Procedure*  procedure){
         int i=0;
         for (i = 0; i < procedure->argc; i++){
 		totalSize += getTypeSize(procedure->types[i]);
-		/*
-                switch (procedure->types[i]){
-                        case RPC_TYPE_VOID:     totalSize += 0; break;
-                        case RPC_TYPE_BOOL:     totalSize += 1; break;
-                        case RPC_TYPE_UINT8:    totalSize += 1; break;
-                        case RPC_TYPE_UINT16:   totalSize += 2; break;
-                        case RPC_TYPE_UINT32:   totalSize += 4; break;
-                        case RPC_TYPE_UINT64:   totalSize += 8; break;
-                        case RPC_TYPE_INT8:     totalSize += 1; break;
-                        case RPC_TYPE_INT16:    totalSize += 2; break;
-                        case RPC_TYPE_INT32:    totalSize += 4; break;
-                        case RPC_TYPE_INT64:    totalSize += 8; break;
-                        case RPC_TYPE_FLOAT:    totalSize += 4; break;
-			case RPC_TYPE_DOUBLE:   totalSize += 8; break;
-                        
-                        // TODO: special cases and should be processed differently
-                        //case RPC_TYPE_STRING:
-                        //case RPC_TYPE_ARRAY:
-                }
-		*/
         }
         return totalSize;
 }
@@ -371,13 +338,12 @@ uint32 getTypeSize(int inp_type){
                 case RPC_TYPE_UINT64:
                 case RPC_TYPE_INT64:
                 case RPC_TYPE_DOUBLE:   return 8;
-                        
+
                 // TODO: special cases and should be processed differently
                 //case RPC_TYPE_STRING:
                 //case RPC_TYPE_ARRAY:
 	}
-        
-        return -1;
+	return -1;
 }
 
 
@@ -402,13 +368,9 @@ void* rpc_invoke(RPC* rpc, const char* name, ...) {
 	// list out existing procuedure names in current rpc object
 	int proc_index = -1; // index of procedure saved at procedure search time
 	for (i=0;i<RPC_MAX_PROCEDURES;i++){
-		//printf("%d) %s,%s|\n", i+1, rpc->procedures[i].name, name );
 		if (!strcmp(rpc->procedures[i].name, name)){
-			//printf("argc = %d,\n", rpc->procedures[i].argc);
-			//printf("procedure found!-->\n");
 			totalsize = calculateVariablesSize(rpc->procedures[i].argc, rpc->procedures[i].types);
 			proc_index = i;
-			//printf("totalsize = %d\n", totalsize);
 			break;
 		}
 	}
@@ -416,11 +378,10 @@ void* rpc_invoke(RPC* rpc, const char* name, ...) {
 	if (proc_index != -1){
 		// procedure name 32 and argc=sizeof(int) must be added	
 		bytearray = (uint8*)malloc(sizeof(uint8)*(totalsize + RPC_MAX_NAME +sizeof(int)));
-		
 
 		//TODO: now argc taken as a offset for remaining arguments
-		char *p = bytearray;//(char *) &arg_c + sizeof(arg_c);
-		
+		char *p = bytearray;
+
 		//////////////// saving into bytearray ///////////////
 		va_list valist;
 		va_start(valist, rpc->procedures[proc_index].argc);
@@ -439,7 +400,6 @@ void* rpc_invoke(RPC* rpc, const char* name, ...) {
 		for (i=0; i < rpc->procedures[proc_index].argc; i++){
 			//TODO: not sure why the 4 works, may be its because pointer type. Should be researched more 
 			int tmp = va_arg(valist, int);
-			printf("va_arg = %d\n", tmp, tmp);
 
 			memcpy(p, &tmp, calculateVariablesSize(1, &rpc->procedures[proc_index].types[i])); // rpc->procedures[proc_index].types[i]);
 			p +=  calculateVariablesSize(1, &rpc->procedures[proc_index].types[i]); //rpc->procedures[proc_index].types[i];
@@ -455,7 +415,6 @@ void* rpc_invoke(RPC* rpc, const char* name, ...) {
 			error("ERROR writing to socket");
 		}
 		else {
-			printf("RPC Invoke send Waiting for response ...\n");
 			int read_res = read(rpc->sockfd, bytearray, MAX_BUFFER_SIZE);
 			if (read_res < 0) {
 				error("ERROR reading from socket");
@@ -474,17 +433,13 @@ void* rpc_invoke(RPC* rpc, const char* name, ...) {
 }
 
 RPC * rpc_create(RPC* rpc, char * server_ip_addr, uint16_t port, const char * username, const char *salted_password){
-
 	if (rpc == NULL){
 		rpc = (RPC *)malloc(sizeof(RPC));
 	}
 
 	int portno, n;
-
 	struct sockaddr_in serv_addr;
 	struct hostent *server;
-
-
 	char buffer[MAX_BUFFER_SIZE];
 
 	portno = port;
@@ -499,7 +454,6 @@ RPC * rpc_create(RPC* rpc, char * server_ip_addr, uint16_t port, const char * us
         exit(0);
     }
 
-
 	bzero((char *) &serv_addr, sizeof(serv_addr));	
 
 	serv_addr.sin_family = AF_INET;
@@ -508,10 +462,8 @@ RPC * rpc_create(RPC* rpc, char * server_ip_addr, uint16_t port, const char * us
          server->h_length);
 	serv_addr.sin_port = htons(portno);
 
-
-
 	if (connect(rpc->sockfd,(struct sockaddr *) &serv_addr,sizeof(serv_addr)) < 0) 
-        error("ERROR at connecting");
+        	error("ERROR at connecting");
 	else
 		printf("Connected Successfully to remote RPC Server !\n");
 

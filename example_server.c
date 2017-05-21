@@ -41,10 +41,10 @@ uint32 summing_callback(RPC* rpc, char* name, int argc, void** args, void* conte
 	int i =0;
 	int sum = 0;
 	for (i=0;i<argc;i++){
-		printf("arg %d is %d\n", i, *(int*)args[i]);
+		printf("arg %d is %d\n", i+1, *(int*)args[i]);
 		sum += *(int*)args[i];
 	}
-	
+
 	return sum;
 }
 
@@ -53,34 +53,31 @@ uint32 multiplying_callback(RPC* rpc, char* name, int argc, void** args, void* c
 	int i =0;
 	int res = 1;
 	for (i=0;i<argc;i++){
-		printf("arg %d is %d\n", i, *(uint16*)args[i]);
+		printf("arg %d is %d\n", i+1, *(uint16*)args[i]);
 		res *= *(uint16*)args[i];
 	}
-	
+
 	return res;
 }
 
 
 int main(int arc, char ** argv){
-	
 	RPC *  myrpc = (RPC*)malloc(sizeof(RPC));
-	
 	int ret = rpc_init(myrpc, &myconnect, &mydisconnect, &mysend, &myreceive, 0);
-
 
 	/// create procedure
 	RPC_Procedure summing_caller;
 	strncpy(summing_caller.name, "summing", RPC_MAX_NAME);
 	summing_caller.return_type = RPC_TYPE_UINT32;
-	summing_caller.argc = 3;
+	summing_caller.argc = 2;
 	summing_caller.types[0] = RPC_TYPE_UINT32;
 	summing_caller.types[1] = RPC_TYPE_UINT32;
-	summing_caller.types[2] = RPC_TYPE_UINT8;
+	//summing_caller.types[2] = RPC_TYPE_UINT8;
 	summing_caller.func = &summing_callback;
 	summing_caller.context = NULL;
 
 	rpc_add(myrpc, &summing_caller);
-	
+
 	RPC_Procedure multiply_caller;
 	strncpy(multiply_caller.name, "multiplying", RPC_MAX_NAME);
 	multiply_caller.return_type = RPC_TYPE_UINT32;
@@ -89,35 +86,8 @@ int main(int arc, char ** argv){
 	multiply_caller.types[1] = RPC_TYPE_UINT16;	
 	multiply_caller.func = &multiplying_callback;
 	multiply_caller.context = NULL;
-	
+
 	rpc_add(myrpc, &multiply_caller);
 
 	start_rpc_server(myrpc);
-	
-	/// version 2
-	/// char * hello(char * name) {char s[200]; sprintf(s, "hello %s\n", name); return s;}
-
-	//RPC * myrpc = rpc_create(NULL, "127.0.0.1", 12345, "rustam", "dms");  // <-- gets connection to server if non NULL returned
-
-
-	//if (typeof(ret) == int)
-	//	printf("int ekanku!\n");
-	//printf("%d \n", jav);
-	
-	
-
-	/* server side
-
-	RPC *  myrpc = (RPC*)malloc(sizeof(RPC));
-        int ret = rpc_init(myrpc, &myconnect, &mydisconnect, &mysend, &myreceive, 0);
-
-
-	RPC_Procedure r_hello;
-	r_hello.name = "hello";
-	r_hello.return_type = RPC_TYPE_STRING;
-	r_hello.argc = 1;
-	r_hello.types[0] = RPC_TYPE_STRING;
-	r_hello.func = actualfunction();
-	*/
-
 }
