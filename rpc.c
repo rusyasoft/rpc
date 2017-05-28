@@ -1,4 +1,6 @@
 //rustamchange// added headers
+#include <stdio.h>
+
 #include <stdint.h>
 #include <stdarg.h>
 
@@ -15,14 +17,6 @@
 #include <netdb.h> 
 
 #include "rpc.h"
-//////////////////////////////
-
-//rustamchange// added and required definitions
-// i dont know why this one didn't work by default
-#define NULL (0)
-
-#define TRUE   1
-#define FALSE  0
 
 
 
@@ -187,10 +181,20 @@ int start_rpc_server(RPC* rpc){
     }
   
     //set master socket to allow multiple connections , this is just a good habit, it will work without this
-    if( setsockopt(master_socket, SOL_SOCKET, SO_REUSEADDR, (char *)&opt, sizeof(opt)) < 0 )
+    if ( setsockopt(master_socket, SOL_SOCKET, SO_REUSEADDR, (char *)&opt, sizeof(opt)) < 0 )
     {
         perror("setsockopt");
         exit(EXIT_FAILURE);
+    }
+
+    //set receive time out
+    struct timeval timeout_value;
+    timeout_value.tv_sec = RPC_PROCEDURE_RESPONSE_TIMEOUT_S;
+    timeout_value.tv_usec = 0;
+    if ( setsockopt(master_socket, SOL_SOCKET, SO_RCVTIMEO, (const char*)&timeout_value, sizeof(struct timeval)) )
+    {
+        perror("setsockopt");
+	exit(EXIT_FAILURE);
     }
   
     //type of socket created
@@ -240,17 +244,23 @@ int start_rpc_server(RPC* rpc){
         }
   
         //wait for an activity on one of the sockets , timeout is NULL , so wait indefinitely
-        activity = select( max_sd + 1 , &readfds , NULL , NULL , NULL);
-    
+        activity = select( max_sd + 1 , &readfds , NULL , NULL , &timeout_value);
+
         if ((activity < 0) && (errno!=EINTR)) 
         {
-            printf("select error");
+            printf("select error\n");
         }
-          
+	if (activity == 0)
+	{
+		printf("timeout error\n");
+	}
+
+	
+
         //If something happened on the master socket , then its an incoming connection
         if (FD_ISSET(master_socket, &readfds)) 
         {
-		handle_new_connection(rpc, master_socket, &address, &addrlen, &new_socket, message, &client_socket);
+		handle_new_connection(rpc, master_socket, &address, &addrlen, &new_socket, message, (int*)&client_socket);
         }
           
 
@@ -261,7 +271,7 @@ int start_rpc_server(RPC* rpc){
               
             if (FD_ISSET( sd , &readfds)) 
             {
-				handle_incoming_data(rpc, i, sd, &readfds, &address, &addrlen, &client_socket);
+				handle_incoming_data(rpc, i, sd, (int*) &readfds, &address, &addrlen, (int*) &client_socket);
             }
         }
     }
@@ -376,10 +386,9 @@ void* rpc_invoke(RPC* rpc, const char* name, ...) {
 	}
 
 	if (proc_index != -1){
-		// procedure name 32 and argc=sizeof(int) must be added	
 		bytearray = (uint8*)malloc(sizeof(uint8)*(totalsize + RPC_MAX_NAME +sizeof(int)));
 
-		//TODO: now argc taken as a offset for remaining arguments
+		//TODO: now argc taken as an offset for remaining arguments
 		char *p = bytearray;
 
 		//////////////// saving into bytearray ///////////////
@@ -390,27 +399,24 @@ void* rpc_invoke(RPC* rpc, const char* name, ...) {
 		memcpy(p, rpc->procedures[proc_index].name, RPC_MAX_NAME);
 		p += RPC_MAX_NAME;
 
-		int tmp2 = rpc->procedures[proc_index].argc;
 		// second integer valuie for number of arguments argc (even though one byte would be enough just following the structure :P )
-		memcpy(p, &tmp2, sizeof(int));
+		memcpy(p, &rpc->procedures[proc_index].argc, sizeof(int));
 		p += sizeof(int);
 
 
 		//// next the list of arguments are coming
 		for (i=0; i < rpc->procedures[proc_index].argc; i++){
-			//TODO: not sure why the 4 works, may be its because pointer type. Should be researched more 
-			int tmp = va_arg(valist, int);
+			int cur_arg = va_arg(valist, int);
 
-			memcpy(p, &tmp, calculateVariablesSize(1, &rpc->procedures[proc_index].types[i])); // rpc->procedures[proc_index].types[i]);
-			p +=  calculateVariablesSize(1, &rpc->procedures[proc_index].types[i]); //rpc->procedures[proc_index].types[i];
+			memcpy(p, &cur_arg, calculateVariablesSize(1, &rpc->procedures[proc_index].types[i]));
+			p +=  calculateVariablesSize(1, &rpc->procedures[proc_index].types[i]);
 		}
 
 		va_end(valist);
-
 		////////////////////////////////////////////////////////
 
 		// send the bytearray 
-		int write_res = write(rpc->sockfd, bytearray, (totalsize + RPC_MAX_NAME + sizeof(int)));// totalsize);
+		int write_res = write(rpc->sockfd, bytearray, (totalsize + RPC_MAX_NAME + sizeof(int)));
 		if (write_res < 0) {
 			error("ERROR writing to socket");
 		}
@@ -419,14 +425,22 @@ void* rpc_invoke(RPC* rpc, const char* name, ...) {
 			if (read_res < 0) {
 				error("ERROR reading from socket");
 			}
+			else if(read_res == 0){ // timeout happened
+				errno = ETIMEDOUT;
+				printf("rpc_invoke: timeout at receiving\n");
+
+				free(bytearray);
+				return NULL;
+			}
 			else {
 				void * return_result = malloc(rpc->procedures[proc_index].return_type);
 				memcpy(return_result, bytearray, sizeof(int));
+				free(bytearray);
 				return (int*)return_result;
 			}
 		}
 	}else{
-		printf("The procedure is not found !!!\n");
+		printf("rpc.c: The procedure is not found !!!\n");
 	}
 
 	return NULL;
@@ -461,6 +475,13 @@ RPC * rpc_create(RPC* rpc, char * server_ip_addr, uint16_t port, const char * us
          (char *)&serv_addr.sin_addr.s_addr,
          server->h_length);
 	serv_addr.sin_port = htons(portno);
+
+	///// set socket receive timeout option //////////////////
+	struct timeval time_value;
+	time_value.tv_sec = RPC_PROCEDURE_RESPONSE_TIMEOUT_S;
+	time_value.tv_usec = 0;
+	setsockopt(rpc->sockfd, SOL_SOCKET, SO_RCVTIMEO, (const char*)&time_value, sizeof(struct timeval) );
+	//////////////////////////////////////////////////////////
 
 	if (connect(rpc->sockfd,(struct sockaddr *) &serv_addr,sizeof(serv_addr)) < 0) 
         	error("ERROR at connecting");

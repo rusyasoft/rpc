@@ -6,6 +6,7 @@
 #define RPC_MAX_PROCEDURES	64
 #define RPC_MAX_NAME		32
 #define RPC_MAX_ARGS		32
+#define RPC_PROCEDURE_RESPONSE_TIMEOUT_S	5
 
 #define RPC_TYPE_VOID		0x00
 #define RPC_TYPE_BOOL		0x01
@@ -21,6 +22,11 @@
 #define RPC_TYPE_DOUBLE		0x0b
 #define RPC_TYPE_STRING		0x0c
 #define RPC_TYPE_ARRAY		0x10
+
+
+
+#define TRUE   1
+#define FALSE  0
 
 //rustamchange// type definitions
 typedef unsigned char bool;

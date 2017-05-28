@@ -1,6 +1,9 @@
 
 
 //rustamchange// added headers
+#include <stdio.h>
+#include <string.h>
+
 #include <stdint.h>
 #include <stdarg.h>
 #include <ctype.h>
@@ -9,9 +12,6 @@
 
 #include "rpc.h"
 
-//rustamchange// added and required definitions
-// i dont know why this one didn't work by default
-#define NULL (0)
 
 //////////////////////////////////////////////
 
