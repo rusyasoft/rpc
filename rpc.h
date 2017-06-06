@@ -55,12 +55,12 @@ typedef struct _array {
 typedef struct _RPC RPC;
 
 typedef struct _RPC_Procedure {
-	char		name[RPC_MAX_NAME];
+	char	name[RPC_MAX_NAME];
 	int		return_type;
 	int		argc;
 	int		types[RPC_MAX_ARGS];
 	void*(*func)(RPC* rpc, char* name, int argc, void** args, void* context);
-	void*		context;
+	void*	context;
 } RPC_Procedure;
 
 struct _RPC {
@@ -70,13 +70,13 @@ struct _RPC {
 	RPC_Procedure	procedures[RPC_MAX_PROCEDURES];
 	
 	// I/O
-	int(*connect)(RPC* rpc, uint32_t addr, uint16_t port, const char* username, const char* salted_password);
-	int(*disconnect)(RPC* rpc);
-	int(*send)(RPC* rpc, void* buf, int size);
-	int(*receive)(RPC* rpc, void* buf, int size);
+	int     (*connect)(RPC* rpc, uint32_t addr, uint16_t port, const char* username, const char* salted_password);
+	int     (*disconnect)(RPC* rpc);
+	int     (*send)(RPC* rpc, void* buf, int size);
+	int     (*receive)(RPC* rpc, void* buf, int size);
 	
 	// Private data
-	int 		sockfd;
+	int     sockfd;
 	uint8_t priv[0];
 };
 
