@@ -2,7 +2,7 @@
 CC=gcc
 CFLAGS=-w
 
-all:	allclean server client test1s test1c runtest
+all:	allclean server client test1s test1c test2s test2c runtest
 
 allclean:
 	rm -rf server client
@@ -20,9 +20,23 @@ test1s:	rpc.c tests/serverTest1.c
 test1c:	rpc.c tests/clientTest1.c
 	$(CC) $(CFLAGS) -o tests/clientTest1 rpc.c tests/clientTest1.c
 
+test2s:	rpc.c tests/serverTest2.c
+	$(CC) $(CFLAGS) -o tests/serverTest2 rpc.c tests/serverTest2.c
+
+test2c:	rpc.c tests/clientTest2.c
+	$(CC) $(CFLAGS) -o tests/clientTest2 rpc.c tests/clientTest2.c
+
 runtest:
+	sudo sleep 1s
+
 	tests/serverTest1 &
 	sleep 1s
 	tests/clientTest1
 	sleep 1s
 	sudo killall serverTest1
+
+	tests/serverTest2 &
+	sleep 1s
+	tests/clientTest2
+	sleep 1s
+	sudo killall serverTest2

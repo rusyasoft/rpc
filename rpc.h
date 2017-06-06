@@ -6,7 +6,7 @@
 #define RPC_MAX_PROCEDURES	64
 #define RPC_MAX_NAME		32
 #define RPC_MAX_ARGS		32
-#define RPC_PROCEDURE_RESPONSE_TIMEOUT_S	5
+#define RPC_PROCEDURE_RESPONSE_TIMEOUT_S	100
 
 #define RPC_TYPE_VOID		0x00
 #define RPC_TYPE_BOOL		0x01
@@ -81,11 +81,12 @@ struct _RPC {
 };
 
 int rpc_init(RPC* rpc,
-	int(*connect)(RPC* rpc, uint32_t addr, uint16_t port, const char* username, const char* salted_password),
-	int(*disconnect)(RPC* rpc),
-	int(*send)(RPC* rpc, void* buf, int size),
-	int(*receive)(RPC* rpc, void* buf, int size),
-	int priv_size);
+    int (*connect)(RPC* rpc, uint32_t addr, uint16_t port, const char* username, const char* salted_password),
+	int (*disconnect)(RPC* rpc),
+	int (*send)(RPC* rpc, void* buf, int size),
+	int (*receive)(RPC* rpc, void* buf, int size),
+	int priv_size
+);
 
 int rpc_add(RPC* rpc, RPC_Procedure* procedure);
 

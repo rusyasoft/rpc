@@ -314,19 +314,19 @@ uint16 getProcedureArgsSize(RPC_Procedure*  procedure) {
 }
 
 uint32 getTypeSize(int inp_type) {
-    switch (inp_type) {
-        case RPC_TYPE_VOID:     return 0;
-        case RPC_TYPE_BOOL:
-        case RPC_TYPE_UINT8:
-        case RPC_TYPE_INT8:     return 1;
-        case RPC_TYPE_UINT16:
-        case RPC_TYPE_INT16:    return 2;
-        case RPC_TYPE_FLOAT:
-        case RPC_TYPE_INT32:
-        case RPC_TYPE_UINT32:   return 4;
-        case RPC_TYPE_UINT64:
-        case RPC_TYPE_INT64:
-        case RPC_TYPE_DOUBLE:   return 8;
+	switch (inp_type) {
+		case RPC_TYPE_VOID:     return 0;
+		case RPC_TYPE_BOOL:
+		case RPC_TYPE_UINT8:
+		case RPC_TYPE_INT8:     return 1;
+		case RPC_TYPE_UINT16:
+		case RPC_TYPE_INT16:    return 2;
+		case RPC_TYPE_FLOAT:
+		case RPC_TYPE_INT32:
+		case RPC_TYPE_UINT32:   return 4;
+		case RPC_TYPE_UINT64:
+		case RPC_TYPE_INT64:
+		case RPC_TYPE_DOUBLE:   return 8;
 
         // TODO: special cases and should be processed differently
         //case RPC_TYPE_STRING:
@@ -357,6 +357,7 @@ void* rpc_invoke(RPC* rpc, const char* name, ...) {
 	// list out existing procuedure names in current rpc object
 	int proc_index = -1; // index of procedure saved at procedure search time
 	for (i=0;i<RPC_MAX_PROCEDURES;i++) {
+		//printf("rpc->procedures[i].name = %s\n", rpc->procedures[i].name);
 		if (!strcmp(rpc->procedures[i].name, name)) {
 			totalsize = calculateVariablesSize(rpc->procedures[i].argc, rpc->procedures[i].types);
 			proc_index = i;
@@ -365,7 +366,7 @@ void* rpc_invoke(RPC* rpc, const char* name, ...) {
 	}
 
 	if (proc_index != -1) {
-		bytearray = (uint8*)malloc(sizeof(uint8)*(totalsize + RPC_MAX_NAME +sizeof(int)));
+		bytearray = (uint8*) malloc(sizeof(uint8)*(totalsize + RPC_MAX_NAME +sizeof(int)));
 
 		//TODO: now argc taken as an offset for remaining arguments
 		char *p = bytearray;
@@ -383,9 +384,35 @@ void* rpc_invoke(RPC* rpc, const char* name, ...) {
 		p += sizeof(int);
 
 
+		
+
 		//// next the list of arguments are coming
 		for (i=0; i < rpc->procedures[proc_index].argc; i++){
-			int cur_arg = va_arg(valist, int);
+			int cur_arg = 0;
+			
+			printf("---- starting rpc_invoke.... types = %d --- \n", rpc->procedures[proc_index].types[i]);
+
+			switch (rpc->procedures[proc_index].types[i]) {
+				case RPC_TYPE_BOOL:		cur_arg = va_arg(valist, bool);	break;
+				case RPC_TYPE_UINT8:	printf("--uint8\n"); cur_arg = va_arg(valist, int); break;
+				case RPC_TYPE_INT8:		printf("--int8\n"); cur_arg = va_arg(valist, int);	break;
+				case RPC_TYPE_UINT16:	printf("--uint16\n"); cur_arg = va_arg(valist, int); break;
+				case RPC_TYPE_INT16:	printf("--int16\n");cur_arg = va_arg(valist, int); break;
+				case RPC_TYPE_FLOAT:	cur_arg = va_arg(valist, double); break;
+				case RPC_TYPE_INT32:	printf("--int32\n"); cur_arg = va_arg(valist, int); break;
+				case RPC_TYPE_UINT32:	printf("--uint32\n"); cur_arg = va_arg(valist, int); break;
+				case RPC_TYPE_UINT64:	cur_arg = va_arg(valist, int); break;
+				case RPC_TYPE_INT64:	cur_arg = va_arg(valist, int); break;
+				case RPC_TYPE_DOUBLE:	cur_arg = va_arg(valist, double); break;
+
+				// TODO: special cases and should be processed differently
+				//case RPC_TYPE_STRING:
+				//case RPC_TYPE_ARRAY:
+			}
+			
+			
+			//tmp debug:
+			printf("calculateVariableSize = %d, type = %d\n", calculateVariablesSize(1, &rpc->procedures[proc_index].types[i]), rpc->procedures[proc_index].types[i]);
 
 			memcpy(p, &cur_arg, calculateVariablesSize(1, &rpc->procedures[proc_index].types[i]));
 			p +=  calculateVariablesSize(1, &rpc->procedures[proc_index].types[i]);
@@ -418,8 +445,8 @@ void* rpc_invoke(RPC* rpc, const char* name, ...) {
 				return (int*)return_result;
 			}
 		}
-	}else{
-		printf("rpc.c: The procedure is not found !!!\n");
+	} else {
+		printf("rpc.c: The procedure is not found !!! str: %s \n", name);
 	}
 
 	return NULL;
