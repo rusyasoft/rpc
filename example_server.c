@@ -60,6 +60,18 @@ uint32 multiplying_callback(RPC* rpc, char* name, int argc, void** args, void* c
 	return res;
 }
 
+uint32 sendstring_callback(RPC* rpc, char* name, int argc, void** args, void* context) {
+        printf("---- inside sendstring_callback ----- name = %s, argc = %d\n", name, argc);
+        int i =0;
+        int sum = 0;
+        for (i=0;i<argc;i++){
+                printf("arg %d is size=%d\n", i+1, ((string*)args[i])->size);
+                //sum += *(int*)args[i];
+        }
+
+        return sum;
+}
+
 
 int main(int arc, char ** argv){
 	RPC *  myrpc = (RPC*)malloc(sizeof(RPC));
@@ -88,6 +100,17 @@ int main(int arc, char ** argv){
 	multiply_caller.context = NULL;
 
 	rpc_add(myrpc, &multiply_caller);
+
+
+	RPC_Procedure sendstring_caller;
+        strncpy(sendstring_caller.name, "sendstring", RPC_MAX_NAME);
+        sendstring_caller.return_type = RPC_TYPE_UINT32;
+        sendstring_caller.argc = 2;
+        sendstring_caller.types[0] = RPC_TYPE_STRING;
+        sendstring_caller.types[1] = RPC_TYPE_STRING;
+        sendstring_caller.func = &sendstring_callback;
+        sendstring_caller.context = NULL;
+        rpc_add(myrpc, &sendstring_caller);
 
 	start_rpc_server(myrpc);
 }

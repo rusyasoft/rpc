@@ -351,7 +351,7 @@ void* rpc_invoke(RPC* rpc, const char* name, ...) {
 
 	int i,j;
 	uint8 *bytearray;
-	uint32 totalsize;
+	uint32 totalsize = 0;
 
 
 	// list out existing procuedure names in current rpc object
@@ -359,14 +359,14 @@ void* rpc_invoke(RPC* rpc, const char* name, ...) {
 	for (i=0;i<RPC_MAX_PROCEDURES;i++) {
 		//printf("rpc->procedures[i].name = %s\n", rpc->procedures[i].name);
 		if (!strcmp(rpc->procedures[i].name, name)) {
-			totalsize = calculateVariablesSize(rpc->procedures[i].argc, rpc->procedures[i].types);
 			proc_index = i;
 			break;
 		}
 	}
 
 	if (proc_index != -1) {
-		bytearray = (uint8*) malloc(sizeof(uint8)*(totalsize + RPC_MAX_NAME +sizeof(int)));
+		//bytearray = (uint8*) malloc(sizeof(uint8)*(totalsize + RPC_MAX_NAME +sizeof(int)));
+		bytearray = (uint8*) malloc(MAX_BUFFER_SIZE);
 
 		//TODO: now argc taken as an offset for remaining arguments
 		char *p = bytearray;
@@ -379,7 +379,7 @@ void* rpc_invoke(RPC* rpc, const char* name, ...) {
 		memcpy(p, rpc->procedures[proc_index].name, RPC_MAX_NAME);
 		p += RPC_MAX_NAME;
 
-		// second integer valuie for number of arguments argc (even though one byte would be enough just following the structure :P )
+		// second integer value for number of arguments argc (even though one byte would be enough just following the structure :P )
 		memcpy(p, &rpc->procedures[proc_index].argc, sizeof(int));
 		p += sizeof(int);
 
@@ -392,30 +392,54 @@ void* rpc_invoke(RPC* rpc, const char* name, ...) {
 			
 			printf("---- starting rpc_invoke.... types = %d --- \n", rpc->procedures[proc_index].types[i]);
 
-			switch (rpc->procedures[proc_index].types[i]) {
-				case RPC_TYPE_BOOL:		cur_arg = va_arg(valist, bool);	break;
-				case RPC_TYPE_UINT8:	printf("--uint8\n"); cur_arg = va_arg(valist, int); break;
-				case RPC_TYPE_INT8:		printf("--int8\n"); cur_arg = va_arg(valist, int);	break;
-				case RPC_TYPE_UINT16:	printf("--uint16\n"); cur_arg = va_arg(valist, int); break;
-				case RPC_TYPE_INT16:	printf("--int16\n");cur_arg = va_arg(valist, int); break;
-				case RPC_TYPE_FLOAT:	cur_arg = va_arg(valist, double); break;
-				case RPC_TYPE_INT32:	printf("--int32\n"); cur_arg = va_arg(valist, int); break;
-				case RPC_TYPE_UINT32:	printf("--uint32\n"); cur_arg = va_arg(valist, int); break;
-				case RPC_TYPE_UINT64:	cur_arg = va_arg(valist, int); break;
-				case RPC_TYPE_INT64:	cur_arg = va_arg(valist, int); break;
-				case RPC_TYPE_DOUBLE:	cur_arg = va_arg(valist, double); break;
+			if (rpc->procedures[proc_index].types[i] < RPC_TYPE_STRING) {
 
-				// TODO: special cases and should be processed differently
-				//case RPC_TYPE_STRING:
-				//case RPC_TYPE_ARRAY:
+				switch (rpc->procedures[proc_index].types[i]) {
+					case RPC_TYPE_BOOL:	cur_arg = va_arg(valist, bool);	break;
+					case RPC_TYPE_UINT8:	printf("--uint8\n"); cur_arg = va_arg(valist, int); break;
+					case RPC_TYPE_INT8:	printf("--int8\n"); cur_arg = va_arg(valist, int);	break;
+					case RPC_TYPE_UINT16:	printf("--uint16\n"); cur_arg = va_arg(valist, int); break;
+					case RPC_TYPE_INT16:	printf("--int16\n");cur_arg = va_arg(valist, int); break;
+					case RPC_TYPE_FLOAT:	cur_arg = va_arg(valist, double); break;
+					case RPC_TYPE_INT32:	printf("--int32\n"); cur_arg = va_arg(valist, int); break;
+					case RPC_TYPE_UINT32:	printf("--uint32\n"); cur_arg = va_arg(valist, int); printf("++uint32\n"); break;
+					case RPC_TYPE_UINT64:	cur_arg = va_arg(valist, int); break;
+					case RPC_TYPE_INT64:	cur_arg = va_arg(valist, int); break;
+					case RPC_TYPE_DOUBLE:	cur_arg = va_arg(valist, double); break;
+
+					// TODO: special cases and should be processed differently
+					case RPC_TYPE_STRING:	cur_arg = va_arg(valist, int); printf("RPC_TYPE_STRING: cur_arg=0x%x\n", cur_arg); break;
+					//case RPC_TYPE_ARRAY:
+				}
+
+				printf("before the calculateVariblesize \n");
+				totalsize += getTypeSize(rpc->procedures[proc_index].types[i]);
+				printf("totalsize = %d\n", totalsize);
+			
+			
+				//tmp debug:
+				printf("calculateVariableSize = %d, type = %d\n", calculateVariablesSize(1, &rpc->procedures[proc_index].types[i]), rpc->procedures[proc_index].types[i]);
+
+				memcpy(p, &cur_arg, calculateVariablesSize(1, &rpc->procedures[proc_index].types[i]));
+				p +=  calculateVariablesSize(1, &rpc->procedures[proc_index].types[i]);
+			} else {
+				if (rpc->procedures[proc_index].types[i] == RPC_TYPE_STRING) {
+					cur_arg = va_arg(valist, int);
+					string *str_ptr = cur_arg;
+					printf("RPC_TYPE_STRING: cur_arg=0x%x\n", cur_arg);
+					printf("RPC_TYPE_STRING: str_ptr=0x%x\n", str_ptr);
+					//printf("RPC_TYPE_STRING is triggered size = %d\n", str_ptr->size);
+					printf("size of string argument = %d, data= %s \n", str_ptr->size, str_ptr->data);
+
+					totalsize += sizeof(uint16) + str_ptr->size;
+
+					memcpy(p, &str_ptr->size, sizeof(uint16));
+					p += sizeof(uint16);
+
+					memcpy(p, str_ptr->data, str_ptr->size);
+					p += str_ptr->size;
+				}
 			}
-			
-			
-			//tmp debug:
-			printf("calculateVariableSize = %d, type = %d\n", calculateVariablesSize(1, &rpc->procedures[proc_index].types[i]), rpc->procedures[proc_index].types[i]);
-
-			memcpy(p, &cur_arg, calculateVariablesSize(1, &rpc->procedures[proc_index].types[i]));
-			p +=  calculateVariablesSize(1, &rpc->procedures[proc_index].types[i]);
 		}
 
 		va_end(valist);
