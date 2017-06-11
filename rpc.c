@@ -101,17 +101,8 @@ int handle_incoming_data(RPC * rpc, int clientID, int sd, int *readfds, struct s
 
     //Echo back the message that came in
     else {
-        printf("received numofbytes = %d\n", valread); 
 		//// recovery example //// prototype code
 		bufwalker = buffer;
-
-        //dbg: bytes
-        int dbg_i=0;
-        for(dbg_i=0;dbg_i<valread;dbg_i++){ 
-            printf("%X ", buffer[dbg_i]);
-        }
-        printf("\n");
-
 
 		char proc_name[RPC_MAX_NAME];
 		int proc_argc;
@@ -148,8 +139,6 @@ int handle_incoming_data(RPC * rpc, int clientID, int sd, int *readfds, struct s
                         string *str_ptr = (string*)malloc(sizeof(string));
                         memcpy( &str_ptr->size, bufwalker, sizeof(uint16) );
                         bufwalker += sizeof(uint16);
-                        //dbg
-                        printf("-->received string size = %d\n", str_ptr->size);
 
                         str_ptr->data = (uint8*)malloc(sizeof(uint8)*str_ptr->size);
                         memcpy( str_ptr->data, bufwalker, sizeof(uint8)*str_ptr->size );
@@ -159,21 +148,16 @@ int handle_incoming_data(RPC * rpc, int clientID, int sd, int *readfds, struct s
                     }
                 }
 			}
-            //dbg: print freshly converted variables
-            printf("args of %s => %f, %f\n", rpc->procedures[proc_index].name,  *(int*)args[0], *(int*)args[1]);
  
 			proc_return = rpc->procedures[proc_index].func(rpc, rpc->procedures[proc_index].name, rpc->procedures[proc_index].argc, args, NULL);
             
             
             if (rpc->procedures[proc_index].return_type==RPC_TYPE_FLOAT || 
                 rpc->procedures[proc_index].return_type==RPC_TYPE_DOUBLE){
-                //dbg printf
-                //printf("return from float or double func = %f %d\n",  *(float*)proc_return, proc_return );
                 memcpy(buffer, proc_return, getTypeSize(rpc->procedures[proc_index].return_type) );
                 buffer[getTypeSize(rpc->procedures[proc_index].return_type)+1] = '\0';
                 send(sd, buffer, getTypeSize(rpc->procedures[proc_index].return_type)+1, 0);
             } else if ( rpc->procedures[proc_index].return_type == RPC_TYPE_STRING ) {
-                printf("rpc: size %d, str: %s\n", ((string*)proc_return)->size, ((string*)proc_return)->data );
                 string *str_ptr = (string*)proc_return;
                 int totalsize = sizeof(uint16) + str_ptr->size;
                 bufwalker = buffer;
@@ -409,7 +393,6 @@ void* rpc_invoke(RPC* rpc, const char* name, ...) {
 	// list out existing procuedure names in current rpc object
 	int proc_index = -1; // index of procedure saved at procedure search time
 	for (i=0;i<RPC_MAX_PROCEDURES;i++) {
-		//printf("rpc->procedures[i].name = %s\n", rpc->procedures[i].name);
 		if (!strcmp(rpc->procedures[i].name, name)) {
 			proc_index = i;
 			break;
@@ -444,36 +427,25 @@ void* rpc_invoke(RPC* rpc, const char* name, ...) {
             float f_cur_arg = 0.0;
             double d_cur_arg = 0;
 			
-			printf("---- starting rpc_invoke.... types = %d --- \n", rpc->procedures[proc_index].types[i]);
 
 			if (rpc->procedures[proc_index].types[i] < RPC_TYPE_STRING) {
 
 				switch (rpc->procedures[proc_index].types[i]) {
-					case RPC_TYPE_BOOL:	cur_arg = va_arg(valist, bool);	break;
-					case RPC_TYPE_UINT8:	printf("--uint8\n"); cur_arg = va_arg(valist, int); break;
-					case RPC_TYPE_INT8:	printf("--int8\n"); cur_arg = va_arg(valist, int);	break;
-					case RPC_TYPE_UINT16:	printf("--uint16\n"); cur_arg = va_arg(valist, int); break;
-					case RPC_TYPE_INT16:	printf("--int16\n");cur_arg = va_arg(valist, int); break;
-					case RPC_TYPE_FLOAT:	f_cur_arg = va_arg(valist, double); printf("invoke float arg = %f\n", f_cur_arg); break;
-					case RPC_TYPE_INT32:	printf("--int32\n"); cur_arg = va_arg(valist, int); break;
-					case RPC_TYPE_UINT32:	printf("--uint32\n"); cur_arg = va_arg(valist, int); printf("++uint32\n"); break;
-					case RPC_TYPE_UINT64:	cur_arg = va_arg(valist, int); break;
-					case RPC_TYPE_INT64:	cur_arg = va_arg(valist, int); break;
-					case RPC_TYPE_DOUBLE:	d_cur_arg = va_arg(valist, double); printf("invoke double arg = %f\n",d_cur_arg); break;
-
-					// TODO: special cases and should be processed differently
-					case RPC_TYPE_STRING:	cur_arg = va_arg(valist, int); printf("RPC_TYPE_STRING: cur_arg=0x%x\n", cur_arg); break;
-					//case RPC_TYPE_ARRAY:
+					case RPC_TYPE_BOOL: cur_arg = va_arg(valist, bool);	break;
+					case RPC_TYPE_UINT8: cur_arg = va_arg(valist, int); break;
+					case RPC_TYPE_INT8: cur_arg = va_arg(valist, int);	break;
+					case RPC_TYPE_UINT16: cur_arg = va_arg(valist, int); break;
+					case RPC_TYPE_INT16: cur_arg = va_arg(valist, int); break;
+					case RPC_TYPE_FLOAT: f_cur_arg = va_arg(valist, double); break;
+					case RPC_TYPE_INT32: cur_arg = va_arg(valist, int); break;
+					case RPC_TYPE_UINT32: cur_arg = va_arg(valist, int); break;
+					case RPC_TYPE_UINT64: cur_arg = va_arg(valist, int); break;
+					case RPC_TYPE_INT64: cur_arg = va_arg(valist, int); break;
+					case RPC_TYPE_DOUBLE: d_cur_arg = va_arg(valist, double); break;
 				}
 
-				printf("before the calculateVariblesize \n");
 				totalsize += getTypeSize(rpc->procedures[proc_index].types[i]);
-				printf("totalsize = %d\n", totalsize);
 
-
-				//tmp debug:
-				printf("calculateVariableSize = %d, type = %d\n", calculateVariablesSize(1, &rpc->procedures[proc_index].types[i]), rpc->procedures[proc_index].types[i]);
-                
                 //distinguish float, double and normal integers
 				if (rpc->procedures[proc_index].types[i]==RPC_TYPE_FLOAT){
                     memcpy(p, &f_cur_arg, calculateVariablesSize(1, &rpc->procedures[proc_index].types[i]));
@@ -487,10 +459,6 @@ void* rpc_invoke(RPC* rpc, const char* name, ...) {
 				if (rpc->procedures[proc_index].types[i] == RPC_TYPE_STRING) {
 					cur_arg = va_arg(valist, int);
 					string *str_ptr = cur_arg;
-					printf("RPC_TYPE_STRING: cur_arg=0x%x\n", cur_arg);
-					printf("RPC_TYPE_STRING: str_ptr=0x%x\n", str_ptr);
-					//printf("RPC_TYPE_STRING is triggered size = %d\n", str_ptr->size);
-					printf("size of string argument = %d, data= %s \n", str_ptr->size, str_ptr->data);
 
 					totalsize += sizeof(uint16) + str_ptr->size;
 
@@ -500,18 +468,12 @@ void* rpc_invoke(RPC* rpc, const char* name, ...) {
 					memcpy(p, str_ptr->data, str_ptr->size);
 					p += str_ptr->size;
 				}
+			    // TODO: special cases with array type should be processed
 			}
 		}
 
 		va_end(valist);
 		////////////////////////////////////////////////////////
-
-        //dbg: bytes
-        int dbg_i=0;
-        for(dbg_i=0;dbg_i<totalsize+RPC_MAX_NAME+sizeof(int);dbg_i++){
-            printf("%X ", bytearray[dbg_i]);
-        }
-        printf("\n");
 
 
 		// send the bytearray 
@@ -533,8 +495,8 @@ void* rpc_invoke(RPC* rpc, const char* name, ...) {
 			}
 			else {
                 if (rpc->procedures[proc_index].return_type < RPC_TYPE_STRING) {
-    				void * return_result = malloc(rpc->procedures[proc_index].return_type);
-		            memcpy(return_result, bytearray, sizeof(int));
+    				void * return_result = malloc(getTypeSize(rpc->procedures[proc_index].return_type) );
+		            memcpy(return_result, bytearray, getTypeSize(rpc->procedures[proc_index].return_type));
 	    			free(bytearray);
 		    		return (int*)return_result;
                 } else {
@@ -548,8 +510,6 @@ void* rpc_invoke(RPC* rpc, const char* name, ...) {
                         memcpy( str_ptr->data, bufwalker, sizeof(uint8)*str_ptr->size );
                         bufwalker += sizeof(uint8) * str_ptr->size;
 
-                        //dbg
-                        printf("-->received string size = %d, str: %s\n", str_ptr->size, str_ptr->data);
 
                         return str_ptr;
                     }

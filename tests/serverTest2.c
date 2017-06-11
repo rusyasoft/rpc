@@ -87,24 +87,20 @@ float* test_sum_callback_FLOAT_args(RPC* rpc, char* name, int argc, void** args,
 	int i =0;
 	float sum = 0;
 	for (i=0;i<argc;i++){
-		printf("arg %d -> %f \n", i , *(float*)args[i] );
 		sum += *(float*)args[i];
 	}
-	printf("float sum = %f\n", sum);
     float* f_result = (float*) malloc(sizeof(float));
     *f_result = sum;
 	return f_result;
 }
 
 double* test_sum_callback_DOUBLE_args(RPC* rpc, char* name, int argc, void** args, void* context) {
-	printf("---- inside summing_callback_float ----- name = %s, argc = %d\n", name, argc);
+	printf("---- inside summing_callback_double ----- name = %s, argc = %d\n", name, argc);
 	int i =0;
 	double sum = 0;
 	for (i=0;i<argc;i++){
-		printf("arg %d -> %f \n", i, *(double*)args[i]);
 		sum += *(double*)args[i];
 	}
-	printf("double sum = %f\n", sum);
     double* d_result = (double*) malloc(sizeof(double));
     *d_result = sum;
 	return d_result;
@@ -113,9 +109,6 @@ double* test_sum_callback_DOUBLE_args(RPC* rpc, char* name, int argc, void** arg
 string * test_string_concat_callback_STRING_args(RPC* rpc, char* name, int argc, void** args, void *context){
     int i =0;
     printf("---- stringconcat function has been triggered ----\n");
-    //for (i=0;i<argc;i++){
-    //    printf("server: arg %d is size=%d, data = %s\n", i+1, ((string*)args[i])->size, ((string*)args[i])->data  );
-    //}
 
     string * str_ptr = (string*)malloc(sizeof(string));
     str_ptr->size = ((string*)args[0])->size + ((string*)args[1])->size + 5;
