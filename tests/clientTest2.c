@@ -89,31 +89,33 @@ int main(int arc, char ** argv){
 	uint8 uint8_a = 10, uint8_b = 20;
 	int * retstr = (int*)rpc_invoke(test_rpc, "sum_UINT8_2args", uint8_a, uint8_b);
 	if (retstr != NULL)
-		printf("sum_UINT8_2args, return = %d\n",  (uint16)*retstr);
+		printf("clientTest2: sum_UINT8_2args, return = %d\n",  (uint16)*retstr);
 
 	uint16 uint16_a = 10, uint16_b = 20;
 	retstr = (int*)rpc_invoke(test_rpc, "sum_UINT16_2args", uint16_a, uint16_b);
 	if (retstr != NULL)
-		printf("sum_UINT16_2args, return = %d\n", *retstr);
+		printf("clientTest2: sum_UINT16_2args, return = %d\n", *retstr);
 	
 	uint32 uint32_a = 10, uint32_b = 20;
 	retstr = (int*)rpc_invoke(test_rpc, "sum_UINT32_2args", uint32_a, uint32_b);
 	if (retstr != NULL)
-		printf("sum_UINT32_2args, return = %d\n", *retstr);
+		printf("clientTest2: sum_UINT32_2args, return = %d\n", *retstr);
 
 	uint64 uint64_a = 10, uint64_b = 20;
 	retstr = (int*)rpc_invoke(test_rpc, "sum_UINT64_2args", uint64_a, uint64_b);
 	if (retstr != NULL)
-		printf("sum_UINT64_2args, return = %d\n", *retstr);
+		printf("clientTest2: sum_UINT64_2args, return = %d\n", *retstr);
 
-	float float_a = 10.1, float_b = 20.2;
-	retstr = (int*)rpc_invoke(test_rpc, "sum_FLOAT_2args", float_a, float_b);
-	if (retstr != NULL)
-		printf("sum_FLOAT_2args, return = %f\n", *retstr);
+	float float_a = 11.1, float_b = 22.2;
+    printf("clientTest2: float_a = %f, float_b = %f\n", float_a, float_b);
+	float * float_retstr = (float*)rpc_invoke(test_rpc, "sum_FLOAT_2args", float_a, float_b);
+	if (float_retstr != NULL)
+		printf("clientTest2: sum_FLOAT_2args, return = %f\n", *float_retstr);
 
-	double double_a = 10, double_b = 20;
-	retstr = (int*)rpc_invoke(test_rpc, "sum_DOUBLE_2args", double_a, double_b);
-	if (retstr != NULL)
-		printf("sum_DOUBLE_2args, return = %d\n", *retstr);
+	double double_a = 10.1, double_b = 20.1;
+    printf("clientTest2: float_a = %f, float_b = %f\n", double_a, double_b);
+	double * double_retstr = (double*)rpc_invoke(test_rpc, "sum_DOUBLE_2args", double_a, double_b);
+	if (double_retstr != NULL)
+		printf("clietTest2: sum_DOUBLE_2args, return = %f\n", *double_retstr);
 
 }

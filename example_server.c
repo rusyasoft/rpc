@@ -60,16 +60,24 @@ uint32 multiplying_callback(RPC* rpc, char* name, int argc, void** args, void* c
 	return res;
 }
 
-uint32 sendstring_callback(RPC* rpc, char* name, int argc, void** args, void* context) {
+string * sendstring_callback(RPC* rpc, char* name, int argc, void** args, void* context) {
         printf("---- inside sendstring_callback ----- name = %s, argc = %d\n", name, argc);
         int i =0;
         int sum = 0;
         for (i=0;i<argc;i++){
-                printf("arg %d is size=%d\n", i+1, ((string*)args[i])->size);
+                printf("arg %d is size=%d, data = %s\n", i+1, ((string*)args[i])->size, ((string*)args[i])->data  );
                 //sum += *(int*)args[i];
         }
+        string * str_ptr = (string*)malloc(sizeof(string));
+        str_ptr->size = ((string*)args[0])->size + ((string*)args[1])->size + 5;
+        str_ptr->data = (uint8*)malloc(sizeof(uint8)*str_ptr->size);
 
-        return sum;
+        strcpy(str_ptr->data, ((string*)args[0])->data);
+        strcat(str_ptr->data, " ");
+        strcat(str_ptr->data, ((string*)args[1])->data);
+        printf("server: returning concatenation string is => %s \n", str_ptr->data);
+
+        return str_ptr;
 }
 
 
@@ -103,14 +111,14 @@ int main(int arc, char ** argv){
 
 
 	RPC_Procedure sendstring_caller;
-        strncpy(sendstring_caller.name, "sendstring", RPC_MAX_NAME);
-        sendstring_caller.return_type = RPC_TYPE_UINT32;
-        sendstring_caller.argc = 2;
-        sendstring_caller.types[0] = RPC_TYPE_STRING;
-        sendstring_caller.types[1] = RPC_TYPE_STRING;
-        sendstring_caller.func = &sendstring_callback;
-        sendstring_caller.context = NULL;
-        rpc_add(myrpc, &sendstring_caller);
+    strncpy(sendstring_caller.name, "sendstring", RPC_MAX_NAME);
+    sendstring_caller.return_type = RPC_TYPE_STRING;
+    sendstring_caller.argc = 2;
+    sendstring_caller.types[0] = RPC_TYPE_STRING;
+    sendstring_caller.types[1] = RPC_TYPE_STRING;
+    sendstring_caller.func = &sendstring_callback;
+    sendstring_caller.context = NULL;
+    rpc_add(myrpc, &sendstring_caller);
 
 	start_rpc_server(myrpc);
 }

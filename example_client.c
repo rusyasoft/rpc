@@ -41,14 +41,14 @@ int main(int arc, char ** argv){
 
 
 	RPC_Procedure sendstring_caller;
-        strncpy(sendstring_caller.name, "sendstring", RPC_MAX_NAME);
-        sendstring_caller.return_type = RPC_TYPE_UINT32;
-        sendstring_caller.argc = 2;
-        sendstring_caller.types[0] = RPC_TYPE_STRING;
-        sendstring_caller.types[1] = RPC_TYPE_STRING;
-        sendstring_caller.func = NULL;
-        sendstring_caller.context = NULL;
-        rpc_add(myrpc, &sendstring_caller);
+    strncpy(sendstring_caller.name, "sendstring", RPC_MAX_NAME);
+    sendstring_caller.return_type = RPC_TYPE_STRING;
+    sendstring_caller.argc = 2;
+    sendstring_caller.types[0] = RPC_TYPE_STRING;
+    sendstring_caller.types[1] = RPC_TYPE_STRING;
+    sendstring_caller.func = NULL;
+    sendstring_caller.context = NULL;
+    rpc_add(myrpc, &sendstring_caller);
 
 	int a=0,b=0;
 	printf("RPC Test (addition and multiplication), Enter Numbers:\na = ");
@@ -80,9 +80,9 @@ int main(int arc, char ** argv){
 	printf("values: str_a.size = %d, str_b.size = %d\n", str_a->size , str_b->size);
 	printf("values1: str_a.data = %s, str_b.data = %s\n ", str_a->data, str_b->data);
 	printf("addresses: &str_a.size = 0x%x &str_a.data = 0x%x\n", &str_a->size, &str_a->data);
-	retstr = (int*)rpc_invoke(myrpc, "sendstring", str_a, str_b);
-	if (retstr != NULL)
-		printf("---> sendstring return = %d\n", *retstr);
+	string * s_ret = (int*)rpc_invoke(myrpc, "sendstring", str_a, str_b);
+	if (s_ret != NULL)
+		printf("---> sendstring return = %s (size=%d)\n", s_ret->data, s_ret->size);
 	else
 		printf("---> error happend at calling sendstring\n");
 }

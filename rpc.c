@@ -87,9 +87,9 @@ int handle_incoming_data(RPC * rpc, int clientID, int sd, int *readfds, struct s
 	char buffer[MAX_BUFFER_SIZE];  //data buffer of 1K
 	char * bufwalker;
 
-    if ((valread = read( sd , buffer, MAX_BUFFER_SIZE-1)) == 0) {
+	if ((valread = read( sd , buffer, MAX_BUFFER_SIZE-1)) == 0) {
         //Somebody disconnected , get his details and print
-        getpeername(sd , (struct sockaddr*)address , (socklen_t*)addrlen);
+		getpeername(sd , (struct sockaddr*)address , (socklen_t*)addrlen);
 		// call rpc disconnect callback function
 		if (rpc->disconnect != NULL) {
 			rpc->disconnect(rpc);
@@ -101,8 +101,17 @@ int handle_incoming_data(RPC * rpc, int clientID, int sd, int *readfds, struct s
 
     //Echo back the message that came in
     else {
+        printf("received numofbytes = %d\n", valread); 
 		//// recovery example //// prototype code
 		bufwalker = buffer;
+
+        //dbg: bytes
+        int dbg_i=0;
+        for(dbg_i=0;dbg_i<valread;dbg_i++){ 
+            printf("%X ", buffer[dbg_i]);
+        }
+        printf("\n");
+
 
 		char proc_name[RPC_MAX_NAME];
 		int proc_argc;
@@ -113,33 +122,76 @@ int handle_incoming_data(RPC * rpc, int clientID, int sd, int *readfds, struct s
 		bufwalker += sizeof(int);
 
 		//TODO: search for the procedure from the RPC sturctures RPC_Procedure array
-		int totalsize = 0, i=0;
+		int i=0;
 		int proc_index = -1; // index of procedure saved at procedure search time
 		for (i=0;i<RPC_MAX_PROCEDURES;i++) {
 			if (!strcmp(rpc->procedures[i].name, proc_name)) {
-				totalsize = getProcedureArgsSize( (RPC_Procedure*)&rpc->procedures[i] );  //calculateVariablesSize(rpc->procedures[i].argc, rpc->procedures[i].types);
 				proc_index = i;
 				break;
 			}
 		}
-		
+
+
 		//TODO: create and allocated required space for the procedure return value and Call procedure
-		void *proc_return;
+		void *proc_return = NULL;
 		if (proc_index != -1){
 			// allocation space and preparation of input arguments
 			void **args = (void**) malloc(sizeof(void*)*(rpc->procedures[proc_index].argc) );
 			for (i=0; i < rpc->procedures[proc_index].argc; i++) {
-				args[i] = malloc(calculateVariablesSize(1, &rpc->procedures[proc_index].types[i])); //malloc(rpc->procedures[proc_index].types[i]);
-				//copying the procedure arguments from received buffer
-				memcpy(args[i], bufwalker, calculateVariablesSize(1, &rpc->procedures[proc_index].types[i]));
-				bufwalker += calculateVariablesSize(1, &rpc->procedures[proc_index].types[i]); //rpc->procedures[proc_index].types[i];
-			}
-			proc_return = rpc->procedures[proc_index].func(rpc, rpc->procedures[proc_index].name, rpc->procedures[proc_index].argc, args, NULL);
+                if (rpc->procedures[proc_index].types[i] < RPC_TYPE_STRING) {
+				    args[i] = malloc(calculateVariablesSize(1, &rpc->procedures[proc_index].types[i])); //malloc(rpc->procedures[proc_index].types[i]);
+				    //copying the procedure arguments from received buffer
+				    memcpy(args[i], bufwalker, calculateVariablesSize(1, &rpc->procedures[proc_index].types[i]));
+				    bufwalker += calculateVariablesSize(1, &rpc->procedures[proc_index].types[i]); //rpc->procedures[proc_index].types[i];
+                } else {
+                    if (rpc->procedures[proc_index].types[i] == RPC_TYPE_STRING) {
+                        string *str_ptr = (string*)malloc(sizeof(string));
+                        memcpy( &str_ptr->size, bufwalker, sizeof(uint16) );
+                        bufwalker += sizeof(uint16);
+                        //dbg
+                        printf("-->received string size = %d\n", str_ptr->size);
 
-			// send rpc response back to client
-			memcpy(buffer, &proc_return, rpc->procedures[proc_index].return_type);
-			buffer[rpc->procedures[proc_index].return_type] = '\0';
-			send(sd, buffer, rpc->procedures[proc_index].return_type, 0);
+                        str_ptr->data = (uint8*)malloc(sizeof(uint8)*str_ptr->size);
+                        memcpy( str_ptr->data, bufwalker, sizeof(uint8)*str_ptr->size );
+                        bufwalker += sizeof(uint8) * str_ptr->size;
+
+                        args[i] = str_ptr;
+                    }
+                }
+			}
+            //dbg: print freshly converted variables
+            printf("args of %s => %f, %f\n", rpc->procedures[proc_index].name,  *(int*)args[0], *(int*)args[1]);
+ 
+			proc_return = rpc->procedures[proc_index].func(rpc, rpc->procedures[proc_index].name, rpc->procedures[proc_index].argc, args, NULL);
+            
+            
+            if (rpc->procedures[proc_index].return_type==RPC_TYPE_FLOAT || 
+                rpc->procedures[proc_index].return_type==RPC_TYPE_DOUBLE){
+                //dbg printf
+                //printf("return from float or double func = %f %d\n",  *(float*)proc_return, proc_return );
+                memcpy(buffer, proc_return, getTypeSize(rpc->procedures[proc_index].return_type) );
+                buffer[getTypeSize(rpc->procedures[proc_index].return_type)+1] = '\0';
+                send(sd, buffer, getTypeSize(rpc->procedures[proc_index].return_type)+1, 0);
+            } else if ( rpc->procedures[proc_index].return_type == RPC_TYPE_STRING ) {
+                printf("rpc: size %d, str: %s\n", ((string*)proc_return)->size, ((string*)proc_return)->data );
+                string *str_ptr = (string*)proc_return;
+                int totalsize = sizeof(uint16) + str_ptr->size;
+                bufwalker = buffer;
+                memcpy(bufwalker, &str_ptr->size, sizeof(uint16));
+                bufwalker += sizeof(uint16);
+
+                memcpy(bufwalker, str_ptr->data, str_ptr->size);
+                bufwalker += str_ptr->size;
+                bufwalker[0] = '\0';
+                send(sd, buffer, totalsize, 0);
+                
+            } else {
+			    // send rpc response back to client
+			    memcpy(buffer, &proc_return, rpc->procedures[proc_index].return_type);
+		    	buffer[rpc->procedures[proc_index].return_type] = '\0';
+		    	send(sd, buffer, getTypeSize(rpc->procedures[proc_index].return_type)+1, 0);
+            }
+
 		} else {
 			printf("Couldn't find procedure named: %s\n", proc_name);
 		}
@@ -389,6 +441,8 @@ void* rpc_invoke(RPC* rpc, const char* name, ...) {
 		//// next the list of arguments are coming
 		for (i=0; i < rpc->procedures[proc_index].argc; i++){
 			int cur_arg = 0;
+            float f_cur_arg = 0.0;
+            double d_cur_arg = 0;
 			
 			printf("---- starting rpc_invoke.... types = %d --- \n", rpc->procedures[proc_index].types[i]);
 
@@ -400,12 +454,12 @@ void* rpc_invoke(RPC* rpc, const char* name, ...) {
 					case RPC_TYPE_INT8:	printf("--int8\n"); cur_arg = va_arg(valist, int);	break;
 					case RPC_TYPE_UINT16:	printf("--uint16\n"); cur_arg = va_arg(valist, int); break;
 					case RPC_TYPE_INT16:	printf("--int16\n");cur_arg = va_arg(valist, int); break;
-					case RPC_TYPE_FLOAT:	cur_arg = va_arg(valist, double); break;
+					case RPC_TYPE_FLOAT:	f_cur_arg = va_arg(valist, double); printf("invoke float arg = %f\n", f_cur_arg); break;
 					case RPC_TYPE_INT32:	printf("--int32\n"); cur_arg = va_arg(valist, int); break;
 					case RPC_TYPE_UINT32:	printf("--uint32\n"); cur_arg = va_arg(valist, int); printf("++uint32\n"); break;
 					case RPC_TYPE_UINT64:	cur_arg = va_arg(valist, int); break;
 					case RPC_TYPE_INT64:	cur_arg = va_arg(valist, int); break;
-					case RPC_TYPE_DOUBLE:	cur_arg = va_arg(valist, double); break;
+					case RPC_TYPE_DOUBLE:	d_cur_arg = va_arg(valist, double); printf("invoke double arg = %f\n",d_cur_arg); break;
 
 					// TODO: special cases and should be processed differently
 					case RPC_TYPE_STRING:	cur_arg = va_arg(valist, int); printf("RPC_TYPE_STRING: cur_arg=0x%x\n", cur_arg); break;
@@ -415,12 +469,19 @@ void* rpc_invoke(RPC* rpc, const char* name, ...) {
 				printf("before the calculateVariblesize \n");
 				totalsize += getTypeSize(rpc->procedures[proc_index].types[i]);
 				printf("totalsize = %d\n", totalsize);
-			
-			
+
+
 				//tmp debug:
 				printf("calculateVariableSize = %d, type = %d\n", calculateVariablesSize(1, &rpc->procedures[proc_index].types[i]), rpc->procedures[proc_index].types[i]);
-
-				memcpy(p, &cur_arg, calculateVariablesSize(1, &rpc->procedures[proc_index].types[i]));
+                
+                //distinguish float, double and normal integers
+				if (rpc->procedures[proc_index].types[i]==RPC_TYPE_FLOAT){
+                    memcpy(p, &f_cur_arg, calculateVariablesSize(1, &rpc->procedures[proc_index].types[i]));
+                }else if (rpc->procedures[proc_index].types[i] == RPC_TYPE_DOUBLE){
+                    memcpy(p, &d_cur_arg, calculateVariablesSize(1, &rpc->procedures[proc_index].types[i]));
+                }else{
+                    memcpy(p, &cur_arg, calculateVariablesSize(1, &rpc->procedures[proc_index].types[i]));
+                }
 				p +=  calculateVariablesSize(1, &rpc->procedures[proc_index].types[i]);
 			} else {
 				if (rpc->procedures[proc_index].types[i] == RPC_TYPE_STRING) {
@@ -445,6 +506,14 @@ void* rpc_invoke(RPC* rpc, const char* name, ...) {
 		va_end(valist);
 		////////////////////////////////////////////////////////
 
+        //dbg: bytes
+        int dbg_i=0;
+        for(dbg_i=0;dbg_i<totalsize+RPC_MAX_NAME+sizeof(int);dbg_i++){
+            printf("%X ", bytearray[dbg_i]);
+        }
+        printf("\n");
+
+
 		// send the bytearray 
 		int write_res = write(rpc->sockfd, bytearray, (totalsize + RPC_MAX_NAME + sizeof(int)));
 		if (write_res < 0) {
@@ -463,10 +532,28 @@ void* rpc_invoke(RPC* rpc, const char* name, ...) {
 				return NULL;
 			}
 			else {
-				void * return_result = malloc(rpc->procedures[proc_index].return_type);
-				memcpy(return_result, bytearray, sizeof(int));
-				free(bytearray);
-				return (int*)return_result;
+                if (rpc->procedures[proc_index].return_type < RPC_TYPE_STRING) {
+    				void * return_result = malloc(rpc->procedures[proc_index].return_type);
+		            memcpy(return_result, bytearray, sizeof(int));
+	    			free(bytearray);
+		    		return (int*)return_result;
+                } else {
+                    if (rpc->procedures[proc_index].return_type == RPC_TYPE_STRING) {
+                        string * str_ptr = (string*) malloc(sizeof(string));
+                        uint8 * bufwalker = bytearray;
+                        memcpy( &str_ptr->size, bufwalker, sizeof(uint16) );
+                        bufwalker += sizeof(uint16);
+
+                        str_ptr->data = (uint8*)malloc(sizeof(uint8)*str_ptr->size);
+                        memcpy( str_ptr->data, bufwalker, sizeof(uint8)*str_ptr->size );
+                        bufwalker += sizeof(uint8) * str_ptr->size;
+
+                        //dbg
+                        printf("-->received string size = %d, str: %s\n", str_ptr->size, str_ptr->data);
+
+                        return str_ptr;
+                    }
+                }
 			}
 		}
 	} else {
