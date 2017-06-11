@@ -84,6 +84,17 @@ int main(int arc, char ** argv){
 	test_sum_DOUBLE_2args.context = NULL;
 	rpc_add(test_rpc, &test_sum_DOUBLE_2args);
 
+    /// procedure STRING 2 args
+    RPC_Procedure test_string_concat_STRING_2args;
+    strncpy(test_string_concat_STRING_2args.name, "string_concat", RPC_MAX_NAME);
+    test_string_concat_STRING_2args.return_type = RPC_TYPE_STRING;
+    test_string_concat_STRING_2args.argc = 2;
+    test_string_concat_STRING_2args.types[0] = RPC_TYPE_STRING;
+    test_string_concat_STRING_2args.types[1] = RPC_TYPE_STRING;
+    test_string_concat_STRING_2args.func = NULL;
+    test_string_concat_STRING_2args.context = NULL;
+    rpc_add(test_rpc, &test_string_concat_STRING_2args);
+
 
 
 	uint8 uint8_a = 10, uint8_b = 20;
@@ -117,5 +128,23 @@ int main(int arc, char ** argv){
 	double * double_retstr = (double*)rpc_invoke(test_rpc, "sum_DOUBLE_2args", double_a, double_b);
 	if (double_retstr != NULL)
 		printf("clietTest2: sum_DOUBLE_2args, return = %f\n", *double_retstr);
+
+
+    string *str_a, *str_b;
+    str_a = (string*)malloc(sizeof(string));
+    str_b = (string*)malloc(sizeof(string));
+
+    str_a->size = 11;
+    str_a->data = (uint8*)malloc(sizeof(uint8)*11);
+    strncpy(str_a->data, "hellorpc", 9);
+
+    str_b->size = 15;
+    str_b->data = (uint8*)malloc(sizeof(uint8)*15);
+    strncpy(str_b->data, "goodbyerpc", 11);
+    string * s_ret = (int*)rpc_invoke(test_rpc, "string_concat", str_a, str_b);
+    if (s_ret != NULL)
+        printf("clientTest2: string_concat return = %s (size=%d)\n", s_ret->data, s_ret->size);
+    else
+        printf("clientTest2: error happend at calling string_concat\n");
 
 }

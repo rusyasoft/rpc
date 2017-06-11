@@ -110,6 +110,22 @@ double* test_sum_callback_DOUBLE_args(RPC* rpc, char* name, int argc, void** arg
 	return d_result;
 }
 
+string * test_string_concat_callback_STRING_args(RPC* rpc, char* name, int argc, void** args, void *context){
+    int i =0;
+    printf("---- stringconcat function has been triggered ----\n");
+    //for (i=0;i<argc;i++){
+    //    printf("server: arg %d is size=%d, data = %s\n", i+1, ((string*)args[i])->size, ((string*)args[i])->data  );
+    //}
+
+    string * str_ptr = (string*)malloc(sizeof(string));
+    str_ptr->size = ((string*)args[0])->size + ((string*)args[1])->size + 5;
+    str_ptr->data = (uint8*)malloc(sizeof(uint8)*str_ptr->size);
+    strcpy(str_ptr->data, ((string*)args[0])->data);
+    strcat(str_ptr->data, " ");
+    strcat(str_ptr->data, ((string*)args[1])->data);
+
+    return str_ptr;
+}
 
 int main(int arc, char ** argv) {
 	RPC *  test_rpc = (RPC*)malloc(sizeof(RPC));
@@ -181,6 +197,16 @@ int main(int arc, char ** argv) {
 	test_sum_DOUBLE_2args.context = NULL;
 	rpc_add(test_rpc, &test_sum_DOUBLE_2args);
 
+    /// procedure STRING 2 arguments
+    RPC_Procedure string_concat_caller;
+    strncpy(string_concat_caller.name, "string_concat", RPC_MAX_NAME);
+    string_concat_caller.return_type = RPC_TYPE_STRING;
+    string_concat_caller.argc = 2;
+    string_concat_caller.types[0] = RPC_TYPE_STRING;
+    string_concat_caller.types[1] = RPC_TYPE_STRING;
+    string_concat_caller.func = &test_string_concat_callback_STRING_args;
+    string_concat_caller.context = NULL;
+    rpc_add(test_rpc, &string_concat_caller);
 
 	start_rpc_server(test_rpc);
 }
