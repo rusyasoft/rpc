@@ -1,21 +1,16 @@
-
-
-//rustamchange// added headers
+/**
+ * @file	example_server.c
+ * @author	Rustam Rakhimov <rusyasoft@gmail.com>
+ *
+ * @brief	simple example of usage rpc server api
+ *
+ */
+ 
 #include <stdint.h>
 #include <stdarg.h>
 #include <ctype.h>
-//////////////////////////////
-
-
-#include "rpc.h"
-
-//rustamchange// added and required definitions
-// i dont know why this one didn't work by default
-#define NULL (0)
-
-//////////////////////////////////////////////
-
-
+#include "include/rpc.h"
+#include "include/rpcsvc.h"
 
 int myconnect(RPC* rpc, uint32_t addr, uint16_t port, const char* username, const char* salted_password){
 	printf("myconnect callbacked, ip is : %x , port : %d, username=%s, password=%s \n" ,  addr , port, username, salted_password);
@@ -36,7 +31,7 @@ int myreceive(RPC* rpc, void* buf, int size){
 
 
 // callback function for summing
-uint32 summing_callback(RPC* rpc, char* name, int argc, void** args, void* context) {
+uint32_t summing_callback(RPC* rpc, char* name, int argc, void** args, void* context) {
 	printf("---- inside summing_callback ----- name = %s, argc = %d\n", name, argc);
 	int i =0;
 	int sum = 0;
@@ -48,13 +43,13 @@ uint32 summing_callback(RPC* rpc, char* name, int argc, void** args, void* conte
 	return sum;
 }
 
-uint32 multiplying_callback(RPC* rpc, char* name, int argc, void** args, void* context) {
+uint32_t multiplying_callback(RPC* rpc, char* name, int argc, void** args, void* context) {
 	printf("---- inside multiplying_callback ----- name = %s, argc = %d\n", name, argc);
 	int i =0;
 	int res = 1;
 	for (i=0;i<argc;i++){
-		printf("arg %d is %d\n", i+1, *(uint16*)args[i]);
-		res *= *(uint16*)args[i];
+		printf("arg %d is %d\n", i+1, *(uint16_t*)args[i]);
+		res *= *(uint16_t*)args[i];
 	}
 
 	return res;
@@ -70,7 +65,7 @@ string * sendstring_callback(RPC* rpc, char* name, int argc, void** args, void* 
         }
         string * str_ptr = (string*)malloc(sizeof(string));
         str_ptr->size = ((string*)args[0])->size + ((string*)args[1])->size + 5;
-        str_ptr->data = (uint8*)malloc(sizeof(uint8)*str_ptr->size);
+        str_ptr->data = (uint8_t*)malloc(sizeof(uint8_t)*str_ptr->size);
 
         strcpy(str_ptr->data, ((string*)args[0])->data);
         strcat(str_ptr->data, " ");
@@ -81,9 +76,8 @@ string * sendstring_callback(RPC* rpc, char* name, int argc, void** args, void* 
 }
 
 
-int main(int arc, char ** argv){
-	RPC *  myrpc = (RPC*)malloc(sizeof(RPC));
-	int ret = rpc_init(myrpc, &myconnect, &mydisconnect, &mysend, &myreceive, 0);
+int main(int arc, char ** argv){	
+	RPC * myrpc = rpcsvc_create(NULL, &myconnect, &mydisconnect, &mysend, &myreceive, 0);
 
 	/// create procedure
 	RPC_Procedure summing_caller;
@@ -92,11 +86,10 @@ int main(int arc, char ** argv){
 	summing_caller.argc = 2;
 	summing_caller.types[0] = RPC_TYPE_UINT32;
 	summing_caller.types[1] = RPC_TYPE_UINT32;
-	//summing_caller.types[2] = RPC_TYPE_UINT8;
 	summing_caller.func = &summing_callback;
 	summing_caller.context = NULL;
 
-	rpc_add(myrpc, &summing_caller);
+	rpc_add_procedure(myrpc, &summing_caller);
 
 	RPC_Procedure multiply_caller;
 	strncpy(multiply_caller.name, "multiplying", RPC_MAX_NAME);
@@ -107,7 +100,7 @@ int main(int arc, char ** argv){
 	multiply_caller.func = &multiplying_callback;
 	multiply_caller.context = NULL;
 
-	rpc_add(myrpc, &multiply_caller);
+	rpc_add_procedure(myrpc, &multiply_caller);
 
 
 	RPC_Procedure sendstring_caller;
@@ -118,7 +111,7 @@ int main(int arc, char ** argv){
     sendstring_caller.types[1] = RPC_TYPE_STRING;
     sendstring_caller.func = &sendstring_callback;
     sendstring_caller.context = NULL;
-    rpc_add(myrpc, &sendstring_caller);
+    rpc_add_procedure(myrpc, &sendstring_caller);
 
-	start_rpc_server(myrpc);
+	rpcsvc_run(myrpc);
 }

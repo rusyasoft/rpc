@@ -1,7 +1,9 @@
-/*
- * Author:	Rustam Rakhimov
- * Description:	Test case that checks simple integer based rpc calls
- * Year:	2017
+ /**
+ * @file	serverTest1.c
+ * @author	Rustam Rakhimov <rusyasoft@gmail.com>
+ *
+ * @brief	Test case that checks simple integer based rpc calls
+ * @year	2017
  */
 
 //rustamchange// added headers
@@ -13,7 +15,8 @@
 //////////////////////////////
 
 
-#include "../rpc.h"
+#include "../include/rpc.h"
+#include "../include/rpcsvc.h"
 
 //rustamchange// added and required definitions
 // i dont know why this one didn't work by default
@@ -42,7 +45,7 @@ int test_receive(RPC* rpc, void* buf, int size){
 
 
 // callback function for summing
-uint32 test_sum_callback_2args(RPC* rpc, char* name, int argc, void** args, void* context) {
+uint32_t test_sum_callback_2args(RPC* rpc, char* name, int argc, void** args, void* context) {
 	printf("---- inside summing_callback ----- name = %s, argc = %d\n", name, argc);
 	int i =0;
 	int sum = 0;
@@ -54,21 +57,20 @@ uint32 test_sum_callback_2args(RPC* rpc, char* name, int argc, void** args, void
 	return sum;
 }
 
-uint32 test_multiply_callback_2args(RPC* rpc, char* name, int argc, void** args, void* context) {
+uint32_t test_multiply_callback_2args(RPC* rpc, char* name, int argc, void** args, void* context) {
 	printf("---- inside multiplying_callback ----- name = %s, argc = %d\n", name, argc);
 	int i =0;
 	int res = 1;
 	for (i=0;i<argc;i++){
-		printf("arg %d is %d\n", i+1, *(uint16*)args[i]);
-		res *= *(uint16*)args[i];
+		printf("arg %d is %d\n", i+1, *(uint16_t*)args[i]);
+		res *= *(uint16_t*)args[i];
 	}
 	return res;
 }
 
 
 int main(int arc, char ** argv){
-	RPC *  test_rpc = (RPC*)malloc(sizeof(RPC));
-	int ret = rpc_init(test_rpc, &test_connect, &test_disconnect, &test_send, &test_receive, 0);
+	RPC *  test_rpc = rpcsvc_create(NULL, &test_connect, &test_disconnect, &test_send, &test_receive, 0);
 
 	/// create procedure
 	RPC_Procedure test_summing_caller_2args;
@@ -80,7 +82,7 @@ int main(int arc, char ** argv){
 	test_summing_caller_2args.func = &test_sum_callback_2args;
 	test_summing_caller_2args.context = NULL;
 
-	rpc_add(test_rpc, &test_summing_caller_2args);
+	rpc_add_procedure(test_rpc, &test_summing_caller_2args);
 
 	RPC_Procedure test_multiply_caller_2args;
 	strncpy(test_multiply_caller_2args.name, "multiplying_2args", RPC_MAX_NAME);
@@ -91,7 +93,7 @@ int main(int arc, char ** argv){
 	test_multiply_caller_2args.func = &test_multiply_callback_2args;
 	test_multiply_caller_2args.context = NULL;
 
-	rpc_add(test_rpc, &test_multiply_caller_2args);
+	rpc_add_procedure(test_rpc, &test_multiply_caller_2args);
 
-	start_rpc_server(test_rpc);
+	rpcsvc_run(test_rpc);
 }

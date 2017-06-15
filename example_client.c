@@ -1,4 +1,10 @@
-
+/**
+ * @file	example_client.c
+ * @author	Rustam Rakhimov <rusyasoft@gmail.com>
+ *
+ * @brief	simple example of usage rpc client api
+ *
+ */
 
 //rustamchange// added headers
 #include <stdio.h>
@@ -9,14 +15,14 @@
 #include <ctype.h>
 //////////////////////////////
 
-
-#include "rpc.h"
+#include "include/rpc.h"
+#include "include/rpcclt.h"
 
 
 //////////////////////////////////////////////
 
 int main(int arc, char ** argv){
-	RPC * myrpc = rpc_create(NULL, "127.0.0.1", 8888, "rustam", "dms");  // <-- gets connection to server if non NULL returned
+	RPC * myrpc = rpcclt_create(NULL, "127.0.0.1", 8888, "rustam", "dms");  // <-- gets connection to server if non NULL returned
 
 	RPC_Procedure summing_caller;
 	strncpy(summing_caller.name, "summing", RPC_MAX_NAME);
@@ -26,7 +32,7 @@ int main(int arc, char ** argv){
 	summing_caller.types[1] = RPC_TYPE_UINT32;
 	summing_caller.func = NULL;
 	summing_caller.context = NULL;
-	rpc_add(myrpc, &summing_caller);
+	rpc_add_procedure(myrpc, &summing_caller);
 
 
 	RPC_Procedure multiply_caller;
@@ -37,7 +43,7 @@ int main(int arc, char ** argv){
 	multiply_caller.types[1] = RPC_TYPE_UINT16;	
 	multiply_caller.func = NULL;
 	multiply_caller.context = NULL;	
-	rpc_add(myrpc, &multiply_caller);
+	rpc_add_procedure(myrpc, &multiply_caller);
 
 
 	RPC_Procedure sendstring_caller;
@@ -48,7 +54,7 @@ int main(int arc, char ** argv){
     sendstring_caller.types[1] = RPC_TYPE_STRING;
     sendstring_caller.func = NULL;
     sendstring_caller.context = NULL;
-    rpc_add(myrpc, &sendstring_caller);
+    rpc_add_procedure(myrpc, &sendstring_caller);
 
 	int a=0,b=0;
 	printf("RPC Test (addition and multiplication), Enter Numbers:\na = ");
@@ -56,11 +62,11 @@ int main(int arc, char ** argv){
 	printf("b = ");
 	scanf("%d", &b);
 
-	int * retstr = (int*)rpc_invoke(myrpc, "summing",a,b);
+	int * retstr = (int*)rpcclt_invoke(myrpc, "summing",a,b);
 	if (retstr != NULL)
 		printf("RPC_MAX_NAME = %d, summing_caller.name = %s, return = %d\n", RPC_MAX_NAME, summing_caller.name, *retstr);
 
-	retstr = (int*)rpc_invoke(myrpc, "multiplying",a,b);
+	retstr = (int*)rpcclt_invoke(myrpc, "multiplying",a,b);
 	if (retstr != NULL)
 		printf("RPC_MAX_NAME = %d, multiply_caller.name = %s, return = %d\n", RPC_MAX_NAME, multiply_caller.name, *retstr);
 
@@ -69,18 +75,18 @@ int main(int arc, char ** argv){
 	str_b = (string*)malloc(sizeof(string));
 
 	str_a->size = 11;
-	str_a->data = (uint8*)malloc(sizeof(uint8)*11);
+	str_a->data = (uint8_t*)malloc(sizeof(uint8_t)*11);
 	strncpy(str_a->data, "hellorpc", 9);
 
 	str_b->size = 15;
-	str_b->data = (uint8*)malloc(sizeof(uint8)*15);
+	str_b->data = (uint8_t*)malloc(sizeof(uint8_t)*15);
 	strncpy(str_b->data, "goodbyerpc", 11);
 
 	printf("sendstring &str_a = 0x%x &str_b=0x%x\n",&str_a, &str_b );
 	printf("values: str_a.size = %d, str_b.size = %d\n", str_a->size , str_b->size);
 	printf("values1: str_a.data = %s, str_b.data = %s\n ", str_a->data, str_b->data);
 	printf("addresses: &str_a.size = 0x%x &str_a.data = 0x%x\n", &str_a->size, &str_a->data);
-	string * s_ret = (int*)rpc_invoke(myrpc, "sendstring", str_a, str_b);
+	string * s_ret = (int*)rpcclt_invoke(myrpc, "sendstring", str_a, str_b);
 	if (s_ret != NULL)
 		printf("---> sendstring return = %s (size=%d)\n", s_ret->data, s_ret->size);
 	else
